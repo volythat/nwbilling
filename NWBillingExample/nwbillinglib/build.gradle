@@ -38,23 +38,15 @@ def githubProperties = new Properties()
 githubProperties.load(new FileInputStream(rootProject.file("github.properties")))
 
 
-def getVersionName = { ->
-    return "1.0.0" // Replace with version Name
-}
-
-def getArtificatId = { ->
-    return "nwbilling" // Replace with library name ID
-}
-
 publishing {
-    publications {
-        bar(MavenPublication) {
-            groupId 'com.newway.nwbillinglib'
-            artifactId getArtificatId()
-            version getVersionName()
-            artifact("$buildDir/outputs/aar/${getArtificatId()}-release.aar")
-        }
-    }
+//    publications {
+//        bar(MavenPublication) {
+//            groupId 'com.newway.nwbillinglib'
+//            artifactId 'nwbillinglib'
+//            version '1.0.0'
+//            artifact("$buildDir/outputs/aar/nwbillinglib-release.aar")
+//        }
+//    }
 
     repositories {
         maven {
