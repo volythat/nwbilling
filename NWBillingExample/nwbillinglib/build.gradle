@@ -39,14 +39,12 @@ githubProperties.load(new FileInputStream(rootProject.file("github.properties"))
 
 
 publishing {
-//    publications {
-//        bar(MavenPublication) {
-//            groupId 'com.newway.nwbillinglib'
-//            artifactId 'nwbillinglib'
-//            version '1.0.0'
-//            artifact("$buildDir/outputs/aar/nwbillinglib-release.aar")
-//        }
-//    }
+    publications {
+        bar(MavenPublication) {
+            groupId 'com.newway.purchase'
+            version '1.0.0'
+        }
+    }
 
     repositories {
         maven {
