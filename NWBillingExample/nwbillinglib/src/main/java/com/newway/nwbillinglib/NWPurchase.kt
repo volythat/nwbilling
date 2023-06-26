@@ -1,4 +1,4 @@
-package com.newway.purchase
+package com.newway.nwbillinglib
 
 class NWPurchase(
     val orderId: String?,

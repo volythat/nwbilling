@@ -1,4 +1,4 @@
-package com.newway.purchase
+package com.newway.nwbillinglib
 
 import com.android.billingclient.api.QueryProductDetailsParams
 import com.android.billingclient.api.QueryProductDetailsParams.Product

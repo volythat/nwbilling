@@ -1,4 +1,4 @@
-package com.newway.purchase
+package com.newway.nwbillinglib
 
 import android.app.Activity
 import android.os.Looper
@@ -17,11 +17,20 @@ import com.google.gson.Gson
 
 
 interface NWBillingInterface {
+    //connect to google billing success
     fun onConnected(){}
+    //connect to google billing failed
     fun onConnectFailed(){}
+    //Loaded Subscription info
     fun onLoadedSubscriptionInfo(billingResult: BillingResult,products:List<NWProductDetails>){}
+    // Loaded Products info (INAPP)
     fun onLoadedProductsInfo(billingResult: BillingResult,products:List<NWProductDetails>){}
+    //Get all purchases available (type : SUB or INAPP)
     fun onLoadPurchased(billingResult: BillingResult,purchases: List<Purchase>,type:String){}
+    //purchase a product success
+    fun onPurchasedSuccess(billingResult: BillingResult,purchase:Purchase?,product: NWProduct,productDetail:NWProductDetails?){}
+    //purchase a product failed
+    fun onPurchasedFailed(billingResult: BillingResult,product: NWProduct?){}
 }
 
 class NWBilling(private val activity: Activity) {
@@ -48,37 +57,37 @@ class NWBilling(private val activity: Activity) {
             products.add(product)
         }
     }
-
+    private fun getProductDetail(product: NWProduct) : NWProductDetails?{
+        val detail = products.filter {it.id == product.id}
+        return detail.firstOrNull()
+    }
     //connect
     fun startServiceConnection(){
         if (billingClient == null) {
             Log.d(TAG, "startServiceConnection: ")
             billingClient = BillingClient.newBuilder(activity).enablePendingPurchases()
                 .setListener { result, listPurchases ->
-                    if (result.responseCode == BillingResponseCode.OK){
-                        Log.d(TAG, "onPurchasesUpdated: responseCode = OK")
-                    }else if (result.responseCode == BillingResponseCode.USER_CANCELED){
-                        Log.d(TAG, "onPurchasesUpdated: USER_CANCELED")
-                    }else if (result.responseCode == BillingResponseCode.FEATURE_NOT_SUPPORTED){
-                        Log.d(TAG, "onPurchasesUpdated: FEATURE_NOT_SUPPORTED")
-                    }else{
-                        Log.d(TAG, "onPurchasesUpdated: responseCode != OK")
-                    }
-                    if (result.responseCode == BillingResponseCode.OK) {
+
+                    if (result.responseCode == BillingResponseCode.OK && buyingProduct != null) {
+                        var pc : Purchase? = null
+                        val detail = getProductDetail(buyingProduct!!)
+                        listPurchases?.forEach { purchase ->
+                            val convert = convertPurchaseJsonToObject(purchase)
+                            if (convert?.productId.equals(buyingProduct?.id)){
+                                pc = purchase
+                            }
+                            handlePurchase(purchase)
+                        }
+                        android.os.Handler(Looper.getMainLooper()).postDelayed({
+                            listener?.onPurchasedSuccess(result, pc, buyingProduct!!,detail)
+                        },1000)
+                    }else {
                         listPurchases?.forEach { purchase ->
                             handlePurchase(purchase)
                         }
-                        if (buyingProduct != null) {
-                            android.os.Handler(Looper.getMainLooper()).postDelayed({
-                                    if (buyingProduct?.type == ProductType.SUBS) {
-                                        asyncSubscription()
-                                    } else {
-                                        asyncInApp()
-                                    }
-                            },1000)
-                        }
-                    }else {
-                        buyingProduct = null
+                        android.os.Handler(Looper.getMainLooper()).postDelayed({
+                            listener?.onPurchasedFailed(result, buyingProduct)
+                        },1000)
                     }
             }.build()
 
@@ -270,7 +279,7 @@ class NWBilling(private val activity: Activity) {
 
 
     //Buy : mua hàng
-    fun buy(activity:Activity,product:NWProduct){
+    fun buy(activity:Activity,product: NWProduct){
         val detail = products.firstOrNull() { it.id == product.id }
         if (detail != null && isConnected ) {
             buyingProduct = product
