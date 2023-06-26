@@ -13,5 +13,5 @@
 .externalNativeBuild
 .cxx
 local.properties
-github.properties
-/github.properties
+
+!/github.properties
