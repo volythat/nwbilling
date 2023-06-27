@@ -16,7 +16,7 @@
 
 ```kotlin
 dependencies {
-    implementation 'com.github.volythat:nwbilling:1.0.9'
+    implementation 'com.github.volythat:nwbilling:1.0.11'
     implementation 'com.android.billingclient:billing-ktx:6.0.1'
     implementation 'com.google.code.gson:gson:2.10.1'
 }
@@ -62,12 +62,8 @@ private fun setUpInApp() {
     nwBilling = NWBilling(this)
     nwBilling?.listener = object : NWBillingInterface {
         override fun onConnected() {
-            // đã kết nối xong với google play -> lấy thông tin products
-            nwBilling?.getInfo(products)
-
-            // các hàm lấy thông tin các product đã mua (gọi khi cần check xem user đã mua iap nào chưa)
-            nwBilling?.asyncInApp()
-            nwBilling?.asyncSubscription()
+            // đã kết nối xong với google play -> lấy thông tin products hoặc lấy thông tin đã purchase 
+            
         }
 
         override fun onConnectFailed() {
@@ -208,16 +204,20 @@ fun buy(){
 Kết quả sẽ được trả về interface : 
 
 ```kotlin
-fun onLoadPurchased(
-            billingResult: BillingResult,
-            purchases: List<Purchase>,
-            type: String
-        )
+override fun onPurchasedFailed(billingResult: BillingResult, product: NWProduct?) {
+    Log.e(TAG, "onPurchasedFailed: id = ${product?.id}")
+}
+
+override fun onPurchasedSuccess(
+    billingResult: BillingResult,
+    purchase: Purchase?,
+    product: NWProduct,
+    productDetail: NWProductDetails?
+) {
+    Log.e(TAG, "onPurchasedSuccess: ${productDetail?.priceValue()}")
+}
 ```
 
-- billingResult : dùng để check thành công hay không .
-- purchases : danh sách các purchase đã mua còn available .
-- type : loại purchase được trả về `ProductType.SUBS` hoặc `ProductType.INAPP` .
 
 Cách lấy productId từ `Purchase` sau khi mua : 
 
