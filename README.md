@@ -12,7 +12,19 @@
 
 ## Implement 
 
-1. Thêm google billing(version 6.0.0 trở lên) và gson (nếu chưa có) vào build.gradle  
+1. Ở file `settings.gradle` thêm dòng bên dưới vào `repositories` của `pluginManagement` và `dependencyResolutionManagement` : 
+
+```kotlin
+maven { url 'https://jitpack.io' }
+```
+
+2. Ở file `gradle.properties` thêm dòng bên dưới : 
+
+```kotlin
+android.enableJetifier=true
+```
+
+3. Thêm google billing(version 6.0.0 trở lên) và gson (nếu chưa có) vào build.gradle  
 
 ```kotlin
 dependencies {
@@ -22,24 +34,10 @@ dependencies {
 }
 ```
 
-2. Thêm quyền billing cho ứng dụng bên trong AndroidManifest.xml
+4. Thêm quyền billing cho ứng dụng bên trong AndroidManifest.xml
 
 ```kotlin
 <uses-permission android:name="com.android.vending.BILLING" />
-```
-
----
-
-## Ở file `settings.gradle` thêm dòng bên dưới vào `repositories` của `pluginManagement` và `dependencyResolutionManagement` : 
-
-```kotlin
-maven { url 'https://jitpack.io' }
-```
-
-## Ở file `gradle.properties` thêm dòng bên dưới : 
-
-```kotlin
-android.enableJetifier=true
 ```
 
 ---
