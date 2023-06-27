@@ -1,6 +1,7 @@
 plugins {
     id "kotlin-android"
     id "com.android.library"
+    id 'maven-publish'
     id 'org.jetbrains.kotlin.android'
 }
 
@@ -30,6 +31,15 @@ android {
     }
     kotlinOptions {
         jvmTarget = '1.8'
+    }
+
+}
+publishing {
+    publications {
+        bar(MavenPublication) {
+            groupId 'com.newway.libraries'
+            version '1.0.0'
+        }
     }
 }
 
