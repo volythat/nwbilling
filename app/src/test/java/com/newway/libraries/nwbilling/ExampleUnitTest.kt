@@ -1,4 +1,4 @@
-package com.newway.nwbillinglib
+package com.newway.libraries.nwbilling
 
 import org.junit.Test
 
