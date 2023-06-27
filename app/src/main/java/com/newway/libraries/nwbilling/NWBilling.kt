@@ -1,4 +1,4 @@
-package com.newway.nwbillinglib
+package com.newway.libraries.nwbilling
 
 import android.app.Activity
 import android.os.Looper
@@ -28,7 +28,7 @@ interface NWBillingInterface {
     //Get all purchases available (type : SUB or INAPP)
     fun onLoadPurchased(billingResult: BillingResult,purchases: List<Purchase>,type:String){}
     //purchase a product success
-    fun onPurchasedSuccess(billingResult: BillingResult,purchase:Purchase?,product: NWProduct,productDetail:NWProductDetails?){}
+    fun onPurchasedSuccess(billingResult: BillingResult, purchase:Purchase?, product: NWProduct, productDetail: NWProductDetails?){}
     //purchase a product failed
     fun onPurchasedFailed(billingResult: BillingResult,product: NWProduct?){}
 }

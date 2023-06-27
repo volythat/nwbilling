@@ -1,4 +1,4 @@
-package com.newway.nwbillinglib
+package com.newway.libraries.nwbilling
 
 import com.android.billingclient.api.ProductDetails
 
@@ -12,4 +12,7 @@ class NWProductDetails(
     var isTrial : Boolean = false,
     var priceToken : String = ""
     ) {
+    fun priceValue() : Double {
+        return (priceMicros / 100000.0)
+    }
 }
