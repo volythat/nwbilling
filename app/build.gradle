@@ -6,13 +6,13 @@ plugins {
 
 android {
     namespace 'com.newway.libraries'
-    compileSdk 32
+    compileSdk 33
 
     defaultConfig {
         minSdk 23
-        targetSdk 32
+        targetSdk 33
         versionCode 1
-        versionName "1.0.6"
+        versionName "1.0.7"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -24,8 +24,8 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
     }
     kotlinOptions {
         jvmTarget = '1.8'
@@ -40,7 +40,7 @@ afterEvaluate {
                 from components.release
                 groupId = 'com.github.volythat'
                 artifactId = 'nwbilling'
-                version = '1.0.6'
+                version = '1.0.7'
             }
         }
     }
@@ -56,4 +56,5 @@ dependencies {
 
     implementation("com.android.billingclient:billing-ktx:6.0.1")
     implementation 'com.google.code.gson:gson:2.10.1'
+
 }
