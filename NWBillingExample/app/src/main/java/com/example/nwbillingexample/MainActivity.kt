@@ -14,6 +14,7 @@ import com.newway.nwbillinglib.NWBillingInterface
 import com.newway.nwbillinglib.NWProduct
 import com.newway.nwbillinglib.NWProductDetails
 
+
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
