@@ -193,7 +193,7 @@ fun onLoadPurchased(
 
 ```kotlin
 fun buy(){
-    val product = NWProduct("ow.document.scanner.pdf.weekly",ProductType.SUBS)
+    val product = NWProduct("<id>",ProductType.SUBS)
     nwBilling?.buy(this,product)
     //=> kết quả sẽ trả về : onLoadPurchased
 }
