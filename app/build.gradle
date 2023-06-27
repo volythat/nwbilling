@@ -38,7 +38,7 @@ afterEvaluate {
             // Creates a Maven publication called "release".
             release(MavenPublication) {
                 from components.release
-                groupId = 'com.newway.libraries'
+                groupId = 'com.github.volythat'
                 artifactId = 'nwbilling'
                 version = '1.0.5'
             }
