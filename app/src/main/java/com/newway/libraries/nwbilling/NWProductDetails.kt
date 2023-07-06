@@ -13,6 +13,6 @@ class NWProductDetails(
     var priceToken : String = ""
     ) {
     fun priceValue() : Double {
-        return (priceMicros / 100000.0)
+        return (priceMicros / 1000000.0)
     }
 }
