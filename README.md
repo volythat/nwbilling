@@ -53,9 +53,9 @@ Khởi tạo và gắn listener :
 private fun setUpInApp() {
     //list products cần lấy
     val products = listOf(
-        NWProduct("ow.document.scanner.pdf.weekly", ProductType.SUBS),
-        NWProduct("ow.document.scanner.pdf.monthly", ProductType.SUBS),
-        NWProduct("ow.scanner.document.pdf.onetime", ProductType.INAPP)
+        NWProduct("sub id", ProductType.SUBS),
+        NWProduct("sub id 2", ProductType.SUBS),
+        NWProduct("inapp id", ProductType.INAPP)
     )
     nwBilling = NWBilling(this)
     nwBilling?.listener = object : NWBillingInterface {
@@ -193,7 +193,7 @@ fun onLoadPurchased(
 
 ```kotlin
 fun buy(){
-    val product = NWProduct("ow.document.scanner.pdf.weekly",ProductType.SUBS)
+    val product = NWProduct("<id>",ProductType.SUBS)
     nwBilling?.buy(this,product)
     //=> kết quả sẽ trả về : onLoadPurchased
 }
