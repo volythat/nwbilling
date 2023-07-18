@@ -58,8 +58,12 @@ class NWBilling(private val activity: Activity) {
         }
     }
     private fun getProductDetail(product: NWProduct) : NWProductDetails?{
-        val detail = products.filter {it.id == product.id}
-        return detail.firstOrNull()
+        return if (products.size > 0) {
+            val detail = products.filter { it.id == product.id }
+            detail.firstOrNull()
+        }else {
+            null
+        }
     }
     //connect
     fun startServiceConnection(){
@@ -99,6 +103,11 @@ class NWBilling(private val activity: Activity) {
                         isConnected = true
                         Log.d(TAG, "startServiceConnection: true")
                         listener?.onConnected()
+                    }else{
+                        buyingProduct = null
+                        isConnected = false
+                        Log.d(TAG, "onBillingSetupFinished responseCode = ${billingResult.responseCode}")
+                        listener?.onConnectFailed()
                     }
                 }
 
@@ -217,28 +226,34 @@ class NWBilling(private val activity: Activity) {
                 // process returned productDetailsList
                 val list = mutableListOf<NWProductDetails>()
                 productDetailsList.forEach {productDetails ->
-                    val item = NWProductDetails(productDetails.productId,ProductType.SUBS,productDetails)
-                    productDetails.subscriptionOfferDetails?.forEach {offer ->
-                        item.priceToken = offer.offerToken
-                        if (offer.pricingPhases.pricingPhaseList.size == 1){
-                            offer.pricingPhases.pricingPhaseList.first()?.let {first ->
-                                item.currencyCode = first.priceCurrencyCode
-                                item.formatPrice = first.formattedPrice
-                                item.priceMicros = first.priceAmountMicros
+                    if (productDetails.productId != null) {
+                        val item = NWProductDetails(
+                            productDetails.productId,
+                            ProductType.SUBS,
+                            productDetails
+                        )
+                        productDetails.subscriptionOfferDetails?.forEach { offer ->
+                            item.priceToken = offer.offerToken
+                            if (offer.pricingPhases.pricingPhaseList.size == 1) {
+                                offer.pricingPhases.pricingPhaseList.first()?.let { first ->
+                                    item.currencyCode = first.priceCurrencyCode
+                                    item.formatPrice = first.formattedPrice
+                                    item.priceMicros = first.priceAmountMicros
+                                }
+                            } else if (offer.pricingPhases.pricingPhaseList.size > 1) {
+                                val first = offer.pricingPhases.pricingPhaseList[0]
+                                val two = offer.pricingPhases.pricingPhaseList[1]
+                                item.currencyCode = two.priceCurrencyCode
+                                item.formatPrice = two.formattedPrice
+                                item.priceMicros = two.priceAmountMicros
+                                item.isTrial = first.priceAmountMicros == 0L
+                            } else {
+                                // nothing
                             }
-                        }else if (offer.pricingPhases.pricingPhaseList.size > 1){
-                            val first = offer.pricingPhases.pricingPhaseList[0]
-                            val two = offer.pricingPhases.pricingPhaseList[1]
-                            item.currencyCode = two.priceCurrencyCode
-                            item.formatPrice = two.formattedPrice
-                            item.priceMicros = two.priceAmountMicros
-                            item.isTrial = first.priceAmountMicros == 0L
-                        }else{
-                            // nothing
                         }
+                        list.add(item)
+                        addProduct(item)
                     }
-                    list.add(item)
-                    addProduct(item)
                 }
                 Log.d(TAG, "getSubscriptionInfo: list products size = ${list.size}")
                 android.os.Handler(Looper.getMainLooper()).postDelayed({
@@ -263,14 +278,20 @@ class NWBilling(private val activity: Activity) {
                 // process returned productDetailsList
                 val list = mutableListOf<NWProductDetails>()
                 productDetailsList.forEach { productDetails ->
-                    val item = NWProductDetails(productDetails.productId, ProductType.INAPP,productDetails)
-                    productDetails.oneTimePurchaseOfferDetails?.let { offer ->
-                        item.currencyCode = offer.priceCurrencyCode
-                        item.formatPrice = offer.formattedPrice
-                        item.priceMicros = offer.priceAmountMicros
+                    if (productDetails.productId != null) {
+                        val item = NWProductDetails(
+                            productDetails.productId,
+                            ProductType.INAPP,
+                            productDetails
+                        )
+                        productDetails.oneTimePurchaseOfferDetails?.let { offer ->
+                            item.currencyCode = offer.priceCurrencyCode
+                            item.formatPrice = offer.formattedPrice
+                            item.priceMicros = offer.priceAmountMicros
+                        }
+                        list.add(item)
+                        addProduct(item)
                     }
-                    list.add(item)
-                    addProduct(item)
                 }
                 listener?.onLoadedProductsInfo(billingResult,list)
             }
@@ -280,7 +301,7 @@ class NWBilling(private val activity: Activity) {
 
     //Buy : mua hàng
     fun buy(activity:Activity,product: NWProduct){
-        val detail = products.firstOrNull() { it.id == product.id }
+        val detail = getProductDetail(product)
         if (detail != null && isConnected ) {
             buyingProduct = product
             val productDetailsParamsList = listOf(
