@@ -59,8 +59,15 @@ class NWBilling(private val activity: Activity) {
     }
     private fun getProductDetail(product: NWProduct) : NWProductDetails?{
         return if (products.size > 0) {
-            val detail = products.filter { it.id == product.id }
-            detail.firstOrNull()
+            var rs : NWProductDetails? = null
+            products.forEach { pt ->
+                if (pt.id != null && product.id != null){
+                    if (product.id == pt.id){
+                        rs = pt
+                    }
+                }
+            }
+            return rs
         }else {
             null
         }
