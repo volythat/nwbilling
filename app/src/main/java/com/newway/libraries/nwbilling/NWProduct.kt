@@ -5,7 +5,8 @@ import com.android.billingclient.api.QueryProductDetailsParams.Product
 
 class NWProduct(
     val id : String,
-    val type : String
+    val type : String,
+    val isConsumable : Boolean = false
 ) {
 
     fun toQueryProduct() : Product {

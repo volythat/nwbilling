@@ -10,9 +10,11 @@ import com.android.billingclient.api.BillingClient.ProductType
 import com.android.billingclient.api.BillingClientStateListener
 import com.android.billingclient.api.BillingFlowParams
 import com.android.billingclient.api.BillingResult
+import com.android.billingclient.api.ConsumeParams
 import com.android.billingclient.api.Purchase
 import com.android.billingclient.api.QueryProductDetailsParams
 import com.android.billingclient.api.QueryPurchasesParams
+import com.android.billingclient.api.consumePurchase
 import com.google.gson.Gson
 
 
@@ -33,13 +35,13 @@ interface NWBillingInterface {
     fun onPurchasedFailed(billingResult: BillingResult,product: NWProduct?){}
 }
 
-class NWBilling(private val activity: Activity) {
+class NWBilling(private val activity: Activity,private val allProducts: List<NWProduct>) {
     val TAG = "NWBilling"
 
     private var billingClient: BillingClient? = null
     var isConnected : Boolean = false
     var listener: NWBillingInterface? = null
-    var products : MutableList<NWProductDetails> = mutableListOf()
+    var productDetails : MutableList<NWProductDetails> = mutableListOf()
     private var buyingProduct : NWProduct? = null
 
     fun destroy(){
@@ -47,20 +49,22 @@ class NWBilling(private val activity: Activity) {
         isConnected = false
         buyingProduct = null
         billingClient = null
-        products = mutableListOf()
+        productDetails = mutableListOf()
         listener = null
     }
 
     //
     private fun addProduct(product: NWProductDetails){
-        if (!products.contains(product)){
-            products.add(product)
+        if (product != null) {
+            if (!productDetails.contains(product)) {
+                productDetails.add(product)
+            }
         }
     }
     private fun getProductDetail(product: NWProduct) : NWProductDetails?{
         try {
-            return if (products.size > 0) {
-                return products.firstOrNull { it.id == product.id }
+            return if (productDetails.size > 0) {
+                return productDetails.firstOrNull { it.id == product.id }
             } else {
                 null
             }
@@ -72,7 +76,6 @@ class NWBilling(private val activity: Activity) {
     //connect
     fun startServiceConnection(){
         if (billingClient == null) {
-            Log.d(TAG, "startServiceConnection: ")
             billingClient = BillingClient.newBuilder(activity).enablePendingPurchases()
                 .setListener { result, listPurchases ->
 
@@ -90,6 +93,7 @@ class NWBilling(private val activity: Activity) {
                             listener?.onPurchasedSuccess(result, pc, buyingProduct!!,detail)
                         },1000)
                     }else {
+                        Log.e(TAG,"startServiceConnection failed: ${result.responseCode} -- mes = ${result.debugMessage}")
                         listPurchases?.forEach { purchase ->
                             handlePurchase(purchase)
                         }
@@ -110,7 +114,7 @@ class NWBilling(private val activity: Activity) {
                     }else{
                         buyingProduct = null
                         isConnected = false
-                        Log.d(TAG, "onBillingSetupFinished responseCode = ${billingResult.responseCode}")
+                        Log.e(TAG, "onBillingSetupFinished responseCode = ${billingResult.responseCode}")
                         listener?.onConnectFailed()
                     }
                 }
@@ -120,7 +124,7 @@ class NWBilling(private val activity: Activity) {
                     // Google Play by calling the startConnection() method.
                     buyingProduct = null
                     isConnected = false
-                    Log.d(TAG, "startServiceConnection: false")
+                    Log.e(TAG, "startServiceConnection: false")
                     listener?.onConnectFailed()
                 }
             })
@@ -132,13 +136,15 @@ class NWBilling(private val activity: Activity) {
         return try {
             gson.fromJson(purchase.originalJson, NWPurchase::class.java)
         }catch (e:Exception){
-            Log.d(TAG, "convertPurchaseJsonToObject: error = ${e.localizedMessage}")
+            Log.e(TAG, "convertPurchaseJsonToObject: error = ${e.localizedMessage}")
             null
         }
     }
 
+
     //handle purchase : dành cho iap non-consumable và subscriptions
     private fun handlePurchase(purchase: Purchase){
+
         if (purchase.purchaseState == Purchase.PurchaseState.PURCHASED){
             if (!purchase.isAcknowledged) {
                 val acknowledgePurchaseParams = AcknowledgePurchaseParams.newBuilder().setPurchaseToken(purchase.purchaseToken)
@@ -146,32 +152,49 @@ class NWBilling(private val activity: Activity) {
                 ) { result ->
                     if (result.responseCode == BillingResponseCode.OK) {
                         Log.d(TAG, "onAcknowledgePurchaseResponse: OK")
+                        // If purchase was a consumable product (a product you want the user to be able to buy again)
+                        handlePurchaseForConsumable(purchase)
                     } else {
-                        Log.d(TAG, "onAcknowledgePurchaseResponse: Failed")
+                        Log.e(TAG, "onAcknowledgePurchaseResponse: Failed")
                     }
                 }
+            }else{
+                Log.e(TAG, "onAcknowledgePurchaseResponse: purchase already isAcknowledged")
+                handlePurchaseForConsumable(purchase)
             }
         }else{
-            Log.d(TAG, "handlePurchase: purchase.purchaseState = ${purchase.purchaseState}")
+            Log.e(TAG, "handlePurchase: purchase.purchaseState = ${purchase.purchaseState}")
         }
     }
 
-    // chỉ dành cho iap consumable (chưa support)
-//    suspend fun handlePurchaseConsumable(purchase: Purchase) {
-//        // Verify the purchase.
-//        // Ensure entitlement was not already granted for this purchaseToken.
-//        // Grant entitlement to the user.
-//        val consumeParams =
-//            ConsumeParams.newBuilder()
-//                .setPurchaseToken(purchase.purchaseToken)
-//                .build()
-//        val result = billingClient?.consumePurchase(consumeParams)
-//        if (result != null){
-//            if (result.billingResult.responseCode == BillingResponseCode.OK){
-//                Log.d(TAG, "onAcknowledgePurchaseResponse: OK")
-//            }
-//        }
-//    }
+    // chỉ dành cho iap consumable
+
+    private fun handlePurchaseForConsumable(purchase: Purchase) {
+        convertPurchaseJsonToObject(purchase)?.let { pur ->
+            allProducts.firstOrNull { it.id == pur.productId }?.let { prod ->
+                if (prod.isConsumable){
+                    handlePurchaseConsumable(purchase)
+                }
+            }
+        }
+    }
+    private fun handlePurchaseConsumable(purchase: Purchase) {
+
+        // Verify the purchase.
+        // Ensure entitlement was not already granted for this purchaseToken.
+        // Grant entitlement to the user.
+        val consumeParams =
+            ConsumeParams.newBuilder()
+                .setPurchaseToken(purchase.purchaseToken)
+                .build()
+        billingClient?.consumeAsync(consumeParams){ result , token ->
+            if (result.responseCode == BillingResponseCode.OK){
+                Log.d(TAG, "handlePurchaseConsumable: OK")
+            }else{
+                Log.e(TAG, "handlePurchaseConsumable: not ok (code = ${result.responseCode})")
+            }
+        }
+    }
 
     // async : lấy các purchase đã mua
     fun asyncSubscription(){
@@ -191,6 +214,7 @@ class NWBilling(private val activity: Activity) {
     fun asyncInApp(){
         val params = QueryPurchasesParams.newBuilder()
             .setProductType(ProductType.INAPP)
+
         billingClient?.queryPurchasesAsync(params.build()
         ) { result, purchases ->
             buyingProduct = null
@@ -204,12 +228,12 @@ class NWBilling(private val activity: Activity) {
     }
 
     // Info : lấy thông tin product
-    fun getInfo(products: List<NWProduct>){
-        val subs = products.filter {it.type == ProductType.SUBS}
+    fun getInfo(){
+        val subs = allProducts.filter {it.type == ProductType.SUBS}
         if (subs.isNotEmpty()) {
             getSubscriptionInfo(subs)
         }
-        val inApp = products.filter {it.type == ProductType.INAPP}
+        val inApp = allProducts.filter {it.type == ProductType.INAPP}
         if (inApp.isNotEmpty()) {
             getProductInfo(inApp)
         }
@@ -217,7 +241,6 @@ class NWBilling(private val activity: Activity) {
 
     private fun getSubscriptionInfo(ids:List<NWProduct>){
         if (isConnected) {
-            Log.d(TAG, "getSubscriptionInfo: ")
             val items = ids.map { it.toQueryProduct() }
             val queryProductDetailsParams =
                 QueryProductDetailsParams.newBuilder()
@@ -228,13 +251,12 @@ class NWBilling(private val activity: Activity) {
                                                                                  productDetailsList ->
                 // check billingResult
                 // process returned productDetailsList
-                val list = mutableListOf<NWProductDetails>()
                 productDetailsList.forEach {productDetails ->
                     if (productDetails.productId != null) {
                         val item = NWProductDetails(
-                            productDetails.productId,
-                            ProductType.SUBS,
-                            productDetails
+                            id = productDetails.productId,
+                            type = ProductType.SUBS,
+                            productDetails = productDetails
                         )
                         productDetails.subscriptionOfferDetails?.forEach { offer ->
                             item.priceToken = offer.offerToken
@@ -255,13 +277,11 @@ class NWBilling(private val activity: Activity) {
                                 // nothing
                             }
                         }
-                        list.add(item)
                         addProduct(item)
                     }
                 }
-                Log.d(TAG, "getSubscriptionInfo: list products size = ${list.size}")
                 android.os.Handler(Looper.getMainLooper()).postDelayed({
-                    listener?.onLoadedSubscriptionInfo(billingResult,list)
+                    listener?.onLoadedSubscriptionInfo(billingResult,productDetails)
                 },200)
             }
         }
@@ -269,7 +289,6 @@ class NWBilling(private val activity: Activity) {
 
     private fun getProductInfo(ids:List<NWProduct>){
         if (isConnected) {
-            Log.d(TAG, "getOnetimeInfo: ")
             val items = ids.map { it.toQueryProduct() }
             val queryProductDetailsParams =
                 QueryProductDetailsParams.newBuilder()
@@ -280,24 +299,22 @@ class NWBilling(private val activity: Activity) {
                                                                                  productDetailsList ->
                 // check billingResult
                 // process returned productDetailsList
-                val list = mutableListOf<NWProductDetails>()
                 productDetailsList.forEach { productDetails ->
                     if (productDetails.productId != null) {
                         val item = NWProductDetails(
-                            productDetails.productId,
-                            ProductType.INAPP,
-                            productDetails
+                            id = productDetails.productId,
+                            type = ProductType.INAPP,
+                            productDetails = productDetails
                         )
                         productDetails.oneTimePurchaseOfferDetails?.let { offer ->
                             item.currencyCode = offer.priceCurrencyCode
                             item.formatPrice = offer.formattedPrice
                             item.priceMicros = offer.priceAmountMicros
                         }
-                        list.add(item)
                         addProduct(item)
                     }
                 }
-                listener?.onLoadedProductsInfo(billingResult,list)
+                listener?.onLoadedProductsInfo(billingResult,productDetails)
             }
         }
     }
@@ -305,34 +322,40 @@ class NWBilling(private val activity: Activity) {
 
     //Buy : mua hàng
     fun buy(activity:Activity,product: NWProduct){
-        val detail = getProductDetail(product)
-        if (detail != null && isConnected ) {
-            buyingProduct = product
-            val productDetailsParamsList = listOf(
-                BillingFlowParams.ProductDetailsParams.newBuilder()
-                    // retrieve a value for "productDetails" by calling queryProductDetailsAsync()
-                    .setProductDetails(detail.productDetails)
-                    // to get an offer token, call ProductDetails.subscriptionOfferDetails()
-                    // for a list of offers that are available to the user
-                    .setOfferToken(detail.priceToken)
+        if (activity.isFinishing || activity.isDestroyed) return
+
+        if (productDetails.size > 0){
+            val detail = getProductDetail(product)
+            if (detail != null && isConnected ) {
+                buyingProduct = product
+                val productDetailsParamsList = listOf(
+                    BillingFlowParams.ProductDetailsParams.newBuilder()
+                        // retrieve a value for "productDetails" by calling queryProductDetailsAsync()
+                        .setProductDetails(detail.productDetails)
+                        // to get an offer token, call ProductDetails.subscriptionOfferDetails()
+                        // for a list of offers that are available to the user
+                        .setOfferToken(detail.priceToken)
+                        .build()
+                )
+
+                val billingFlowParams = BillingFlowParams.newBuilder()
+                    .setProductDetailsParamsList(productDetailsParamsList)
                     .build()
-            )
 
-            val billingFlowParams = BillingFlowParams.newBuilder()
-                .setProductDetailsParamsList(productDetailsParamsList)
-                .build()
-
-            // Launch the billing flow
-            val billingResult = billingClient?.launchBillingFlow(activity, billingFlowParams)
-            if (billingResult?.responseCode == BillingResponseCode.OK) {
-                Log.d(TAG, "buy: show popup purchase OK",)
-            } else {
-                Log.d(TAG, "buy: show popup purchase failed = ${billingResult?.debugMessage}")
+                // Launch the billing flow
+                val billingResult = billingClient?.launchBillingFlow(activity, billingFlowParams)
+                if (billingResult?.responseCode == BillingResponseCode.OK) {
+                    Log.d(TAG, "buy: show popup purchase OK",)
+                } else {
+                    Log.e(TAG, "buy: show popup purchase failed = ${billingResult?.debugMessage}")
+                }
+            }else{
+                buyingProduct = null
+                Log.e(TAG, "buy: isConnected = $isConnected")
+                Log.e(TAG, "buy: can't find id : ${product.id} ")
             }
         }else{
-            buyingProduct = null
-            Log.d(TAG, "buy: isConnected = $isConnected")
-            Log.d(TAG, "buy: can't find id : ${product.id} ")
+            Log.e(TAG,"productDetails.size == 0")
         }
     }
 }

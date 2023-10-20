@@ -3,8 +3,8 @@ package com.newway.libraries.nwbilling
 import com.android.billingclient.api.ProductDetails
 
 class NWProductDetails(
-    val id : String,
-    val type : String,
+    val id : String = "",
+    val type : String = "",
     var productDetails : ProductDetails,
     var currencyCode : String = "USD",
     var formatPrice : String = "",
