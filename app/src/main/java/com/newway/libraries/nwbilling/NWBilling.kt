@@ -58,18 +58,15 @@ class NWBilling(private val activity: Activity) {
         }
     }
     private fun getProductDetail(product: NWProduct) : NWProductDetails?{
-        return if (products.size > 0) {
-            var rs : NWProductDetails? = null
-            products.forEach { pt ->
-                if (pt.id != null && product.id != null){
-                    if (product.id == pt.id){
-                        rs = pt
-                    }
-                }
+        try {
+            return if (products.size > 0) {
+                return products.firstOrNull { it.id == product.id }
+            } else {
+                null
             }
-            return rs
-        }else {
-            null
+        }catch (e:Exception){
+            Log.e(TAG,"can't get product detail error = ${e.localizedMessage}")
+            return null
         }
     }
     //connect
