@@ -227,6 +227,14 @@ purchases.forEach {
 }
 ```
 
+Cách lấy histories purchase (fun suspend): 
+
+```kotlin 
+    val list = nwBilling?.fetchHistory() //hàm gộp cả subs lẫn inapp 
+    val subs = nwBilling?.getSubscriptionHistory() // chỉ lấy history subs 
+    val inapp = nwBilling?.getInAppHistory() // chỉ lấy history in app
+```
+
 ---
 
 ## Chú ý : 
