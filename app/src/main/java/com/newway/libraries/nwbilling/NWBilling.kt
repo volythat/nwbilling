@@ -12,10 +12,16 @@ import com.android.billingclient.api.BillingFlowParams
 import com.android.billingclient.api.BillingResult
 import com.android.billingclient.api.ConsumeParams
 import com.android.billingclient.api.Purchase
+import com.android.billingclient.api.PurchaseHistoryRecord
+import com.android.billingclient.api.PurchaseHistoryResult
 import com.android.billingclient.api.QueryProductDetailsParams
+import com.android.billingclient.api.QueryPurchaseHistoryParams
 import com.android.billingclient.api.QueryPurchasesParams
 import com.android.billingclient.api.consumePurchase
+import com.android.billingclient.api.queryPurchaseHistory
 import com.google.gson.Gson
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 
 
 interface NWBillingInterface {
@@ -193,6 +199,49 @@ class NWBilling(private val activity: Activity,private val allProducts: List<NWP
             }else{
                 Log.e(TAG, "handlePurchaseConsumable: not ok (code = ${result.responseCode})")
             }
+        }
+    }
+
+    // get history
+    suspend fun fetchHistory(): List<PurchaseHistoryRecord> {
+        return coroutineScope {
+            val subs = async { getSubscriptionHistory() }
+            val inapp = async { getInAppHistory() }
+
+            // Wait for both deferred results to complete
+            val rsSubs = subs.await()
+            val rsInapp = inapp.await()
+
+            // Merge or process the results as needed
+            val mergedResult = mergeHistoryResults(rsSubs, rsInapp)
+
+            mergedResult
+        }
+    }
+    private fun mergeHistoryResults(result1: List<PurchaseHistoryRecord>, result2: List<PurchaseHistoryRecord>): List<PurchaseHistoryRecord> {
+        // Merge or process the results as needed
+        return result1 + result2
+    }
+    suspend fun getSubscriptionHistory():List<PurchaseHistoryRecord>{
+        return if (isConnected) {
+            val params = QueryPurchaseHistoryParams.newBuilder()
+                .setProductType(ProductType.SUBS)
+            val result = billingClient?.queryPurchaseHistory(params.build())
+
+            result?.purchaseHistoryRecordList ?: listOf()
+        }else{
+            listOf()
+        }
+    }
+    suspend fun getInAppHistory():List<PurchaseHistoryRecord>{
+        return if (isConnected) {
+            val params = QueryPurchaseHistoryParams.newBuilder()
+                .setProductType(ProductType.INAPP)
+            val result = billingClient?.queryPurchaseHistory(params.build())
+
+            result?.purchaseHistoryRecordList ?: listOf()
+        }else{
+            listOf()
         }
     }
 
