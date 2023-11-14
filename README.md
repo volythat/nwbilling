@@ -57,7 +57,7 @@ private fun setUpInApp() {
         NWProduct("sub id 2", ProductType.SUBS),
         NWProduct("inapp id", ProductType.INAPP)
     )
-    nwBilling = NWBilling(this)
+    nwBilling = NWBilling(this,products)
     nwBilling?.listener = object : NWBillingInterface {
         override fun onConnected() {
             // đã kết nối xong với google play -> lấy thông tin products hoặc lấy thông tin đã purchase 
@@ -145,7 +145,7 @@ override fun onDestroy() {
 Chỉ gọi được khi billing đã khởi tạo và kết nôi thành công : 
 
 ```kotlin
-nwBilling?.getInfo(products)
+nwBilling?.getInfo()
 ```
 
 Thông tin products được trả về interface : 
