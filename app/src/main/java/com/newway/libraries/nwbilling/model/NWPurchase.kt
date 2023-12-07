@@ -1,4 +1,6 @@
-package com.newway.libraries.nwbilling
+package com.newway.libraries.nwbilling.model
+
+import com.android.billingclient.api.Purchase
 
 class NWPurchase(
     val orderId: String?,
@@ -9,7 +11,8 @@ class NWPurchase(
     val purchaseToken : String,
     val quantity : Int,
     val autoRenewing : Boolean,
-    val acknowledged : Boolean
+    val acknowledged : Boolean,
+    var purchase: Purchase? = null
 ) {
 }
 
