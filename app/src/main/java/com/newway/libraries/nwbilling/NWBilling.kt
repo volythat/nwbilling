@@ -60,6 +60,7 @@ object NWBilling {
         allProducts = ids
         resetData()
         if (billingClient == null || billingClient?.isReady == false) {
+            logDebug("init billing")
             billingClient = BillingClient.newBuilder(context).enablePendingPurchases()
                 .setListener { result, listPurchases ->
                     logDebug("buy done: responseCode = ${result.responseCode} -- buying id = ${buyingProduct?.id}")
@@ -88,12 +89,17 @@ object NWBilling {
                         },1000)
                     }
                 }.build()
+
+            startConnect()
+        }else{
+            logDebug("inited billing")
             startConnect()
         }
     }
     //connect
 
     private fun startConnect(){
+        logDebug("startConnect")
         billingClient?.startConnection(object : BillingClientStateListener {
             override fun onBillingSetupFinished(billingResult: BillingResult) {
                 if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {

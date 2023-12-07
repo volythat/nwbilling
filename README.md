@@ -74,10 +74,20 @@ private fun setUpBilling(){
 ```
 - Biến isDebug : để show log purchase , khi release nên để về false 
 - Tất cả interface đều optional, ở màn Splash thì chỉ cần 3 interface trên 
-
+- Hàm NWBilling.setUp chỉ gọi 1 lần ở Splash 
 
 --- 
+- Cách lấy productDetails trực tiếp : 
 
+```kotlin
+val details = NWBilling.details.productDetails
+```
+
+- Cách lấy products đã purchased trực tiếp :
+
+```kotlin
+val details = NWBilling.purchased.purchases
+```
 
 ---
 ## Lấy thông tin products và thanh toán :
@@ -99,7 +109,7 @@ private fun getInfoIAP(){
 
             override fun onLoadedInfo(allDetails: List<NWProductDetails>) {
                 //thông tin các product  sẽ trả về ở đây
-                receivedProductsInfo(allDetails)
+                
             }
 
 
@@ -163,9 +173,9 @@ purchases.forEach {
 Cách lấy histories purchase (fun suspend): 
 
 ```kotlin 
-    val list = nwBilling?.fetchHistory() //hàm gộp cả subs lẫn inapp 
-    val subs = nwBilling?.getSubscriptionHistory() // chỉ lấy history subs 
-    val inapp = nwBilling?.getInAppHistory() // chỉ lấy history in app
+    val list = NWBilling.fetchHistory() //hàm gộp cả subs lẫn inapp 
+    val subs = NWBilling.getSubscriptionHistory() // chỉ lấy history subs 
+    val inapp = NWBilling.getInAppHistory() // chỉ lấy history in app
 ```
 
 ---
