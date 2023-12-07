@@ -119,7 +119,9 @@ object NWBilling {
             }
         })
     }
-
+    fun reConnect(){
+        startConnect()
+    }
 
     // async : lấy các purchase đã mua
     fun asyncPurchased(){
@@ -165,17 +167,21 @@ object NWBilling {
 
     // Info : lấy thông tin product
     fun getInfo(){
-        val subs = allProducts.filter {it.type == ProductType.SUBS}
-        if (subs.isNotEmpty()) {
-            getSubscriptionInfo(subs)
-        }else{
-            details.isLoadedSubs = true
-        }
-        val inApp = allProducts.filter {it.type == ProductType.INAPP}
-        if (inApp.isNotEmpty()) {
-            getProductInfo(inApp)
-        }else{
-            details.isLoadedInApp = true
+        if (allProducts.size == details.productDetails.size){
+            listener?.onLoadedInfo(details.productDetails)
+        }else {
+            val subs = allProducts.filter { it.type == ProductType.SUBS }
+            if (subs.isNotEmpty()) {
+                getSubscriptionInfo(subs)
+            } else {
+                details.isLoadedSubs = true
+            }
+            val inApp = allProducts.filter { it.type == ProductType.INAPP }
+            if (inApp.isNotEmpty()) {
+                getProductInfo(inApp)
+            } else {
+                details.isLoadedInApp = true
+            }
         }
     }
 

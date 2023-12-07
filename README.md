@@ -1,6 +1,6 @@
 
 ## NWBilling
-Đây là library NWBilling dùng cho In App Purchase Android (sử dụng Google Play Billing version 6.0.0)
+Đây là library NWBilling dùng cho In App Purchase Android (sử dụng Google Play Billing version 6.0.0 trở lên)
 
 --- 
 ## Requirement
@@ -28,8 +28,8 @@ android.enableJetifier=true
 
 ```kotlin
 dependencies {
-    implementation 'com.github.volythat:nwbilling:1.0.11'
-    implementation 'com.android.billingclient:billing-ktx:6.0.1'
+    implementation 'com.github.volythat:nwbilling:2.0.0'
+    implementation 'com.android.billingclient:billing-ktx:6.1.0'
     implementation 'com.google.code.gson:gson:2.10.1'
 }
 ```
@@ -42,149 +42,82 @@ dependencies {
 
 ---
 ## Khởi tạo và kết nối : 
-Tạo 1 biến billing ở Activity :
+Ở màn Splash  :
 
 ```kotlin
-var nwBilling : NWBilling? = null
-```
-
-Khởi tạo và gắn listener :
-```kotlin
-private fun setUpInApp() {
-    //list products cần lấy
-    val products = listOf(
-        NWProduct("sub id", ProductType.SUBS),
-        NWProduct("sub id 2", ProductType.SUBS),
-        NWProduct("inapp id", ProductType.INAPP)
-    )
-    nwBilling = NWBilling(this,products)
-    nwBilling?.listener = object : NWBillingInterface {
+private fun setUpBilling(){
+    NWBilling.listener = object : NWBillingInterface {
         override fun onConnected() {
-            // đã kết nối xong với google play -> lấy thông tin products hoặc lấy thông tin đã purchase 
-            
+            // đã kết nối xong với google play -> lấy thông tin products
+            LogD("Splash","splashConnectBillingSuccess")
         }
 
         override fun onConnectFailed() {
-            // không kết nối được với billing google play
+            LogD("Splash","onConnectFailed")
+            // không kết nối được với billing google play : có fun NWBilling.reConnect() để gọi lại 
+            showAlertRetryConnectBilling()
         }
 
-        override fun onLoadedProductsInfo(
-            billingResult: BillingResult,
-            products:List<NWProductDetails>
-        ) {
-            //thông tin các product consumable , non-consumable (lifetime) sẽ trả về ở đây
-            products.forEach {product ->
-                Log.e(TAG, "onLoadedProductsInfo: product = ${product.id} - price = ${product.formatPrice}")
-            }
+        override fun onServiceDisconnected() {
+            LogD("Splash","onServiceDisconnected")
+            // Google service disconnect : google tự gọi lại 
         }
 
-        override fun onLoadedSubscriptionInfo(
-            billingResult: BillingResult,
-            products:List<NWProductDetails>
-        ) {
-            //thông tin các product subscription sẽ trả về ở đây
-            products.forEach {product ->
-                Log.e(TAG, "onLoadedSubscriptionInfo: product = ${product.id} - price = ${product.formatPrice}")
+        override fun onLoadPurchased(purchases: List<NWPurchase>) {
+            purchases.forEach { purchase ->
+                logDebug("detail id = ${purchase.productId} -- price = ${purchase.orderId}")
             }
-        }
-
-        override fun onLoadPurchased(
-            billingResult: BillingResult,
-            purchases: List<Purchase>,
-            type: String
-        ) {
-            Log.e(TAG, "onLoadPurchased: size = ${purchases.size}")
-            if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-                purchases.forEach {
-                    Log.e(TAG, "onLoadPurchased purchases.forEach: ${it.originalJson}")
-                }
-                if (purchases.isNotEmpty()){
-                    // Có ít nhất 1 purchase còn available
-                    Log.e(TAG, "onLoadPurchased: purchase available")
-                }else{
-                    //không tìm thấy purchase nào
-                    Log.e(TAG, "onLoadPurchased: không tìm thấy purchase nào cả")
-                }
-            }else{
-                // load purchase lỗi => kiểm tra biến billingResult.responseCode xem là lỗi gì
-                Log.e(TAG, "onPurchased: Failed")
-                if (billingResult.responseCode == BillingClient.BillingResponseCode.USER_CANCELED){
-                    Log.e(TAG, "onPurchased: Cancel")
-                }else if (billingResult.responseCode == BillingClient.BillingResponseCode.NETWORK_ERROR){
-                    Log.e(TAG, "onPurchased: NETWORK_ERROR")
-                }else if (billingResult.responseCode == BillingClient.BillingResponseCode.BILLING_UNAVAILABLE){
-                    Log.e(TAG, "onPurchased: BILLING_UNAVAILABLE")
-                }
-
-            }
-
         }
     }
-    nwBilling?.startServiceConnection()
+    NWBilling.setUp(context = `<Application context>`,ids = `List<NWProduct>`, isDebug = true)
 }
 ```
+- Biến isDebug : để show log purchase , khi release nên để về false 
+- Tất cả interface đều optional, ở màn Splash thì chỉ cần 3 interface trên 
 
-Sau khi gọi funtion này sẽ chạy vào `onConnected` hoặc `onConnectFailed` . Nếu connect thành công thì mới gọi các funtion lấy thông tin iap hoặc thông tin purchase.
 
 --- 
 
-## Destroy : 
-
-Hủy đi khi không dùng nữa 
-
-```kotlin
-override fun onDestroy() {
-    super.onDestroy()
-    nwBilling?.destroy()
-}
-```
 
 ---
-## Lấy thông tin products : 
+## Lấy thông tin products và thanh toán :
 
-Chỉ gọi được khi billing đã khởi tạo và kết nôi thành công : 
+- Đã gộp cả in app và subs
 
-```kotlin
-nwBilling?.getInfo()
-```
-
-Thông tin products được trả về interface : 
-
-1. Các product consumable và non-consumable(lifetime)
 ```kotlin 
-fun onLoadedProductsInfo(
-        billingResult: BillingResult,
-        products:List<NWProductDetails>
-    )
-```
+private fun getInfoIAP(){
+        NWBilling.listener = object : NWBillingInterface {
+            override fun onConnected() {
+                // đã kết nối xong với google play -> trong trường hợp retry 
+                //NWBilling.getInfo() 
+            }
 
-2. Các product subscription :
-```kotlin
-fun onLoadedSubscriptionInfo(
+            override fun onConnectFailed() {
+                // không kết nối được với billing google play
+                showAlertRetry()
+            }
+
+            override fun onLoadedInfo(allDetails: List<NWProductDetails>) {
+                //thông tin các product  sẽ trả về ở đây
+                receivedProductsInfo(allDetails)
+            }
+
+
+            override fun onPurchasedSuccess(
                 billingResult: BillingResult,
-                products:List<NWProductDetails>
-            )
-```
+                purchase: Purchase?,
+                product: NWProduct,
+                productDetail: NWProductDetails?
+            ) {
+                //thanh toán thành công 
+            }
 
----
-## Lấy thông tin các product đã mua :
-
-Chỉ gọi được khi billing đã khởi tạo và kết nôi thành công : 
-
-```kotlin
- // các hàm lấy thông tin các product đã mua (gọi khi cần check xem user đã mua iap nào chưa)
-    nwBilling?.asyncInApp()
-    nwBilling?.asyncSubscription()
-```
-
-Thông tin được trả về interface :
-
-```kotlin
-fun onLoadPurchased(
-    billingResult: BillingResult,
-    purchases: List<Purchase>,
-    type: String
-)
+            override fun onPurchasedFailed(billingResult: BillingResult, product: NWProduct?) {
+                // Thanh toán lỗi 
+            }
+        }
+        NWBilling.getInfo() // func lấy thông tin iap 
+    }
 ```
 
 ---
@@ -194,7 +127,7 @@ fun onLoadPurchased(
 ```kotlin
 fun buy(){
     val product = NWProduct("<id>",ProductType.SUBS)
-    nwBilling?.buy(this,product)
+    NWBilling.buy(this,product)
     //=> kết quả sẽ trả về : onLoadPurchased
 }
 
@@ -202,17 +135,17 @@ fun buy(){
 Kết quả sẽ được trả về interface : 
 
 ```kotlin
-override fun onPurchasedFailed(billingResult: BillingResult, product: NWProduct?) {
-    Log.e(TAG, "onPurchasedFailed: id = ${product?.id}")
-}
-
 override fun onPurchasedSuccess(
     billingResult: BillingResult,
     purchase: Purchase?,
     product: NWProduct,
     productDetail: NWProductDetails?
 ) {
-    Log.e(TAG, "onPurchasedSuccess: ${productDetail?.priceValue()}")
+    //thanh toán thành công 
+}
+
+override fun onPurchasedFailed(billingResult: BillingResult, product: NWProduct?) {
+    // Thanh toán lỗi 
 }
 ```
 
@@ -222,7 +155,7 @@ Cách lấy productId từ `Purchase` sau khi mua :
 ```kotlin 
 purchases.forEach {
     Log.e(TAG, "onLoadPurchased purchases.forEach: ${it.originalJson}")
-    val obj = billing?.convertPurchaseJsonToObject(it)
+    val obj = NWBilling.purchased.convertPurchaseJsonToObject(it)
     Log.e(TAG, "onLoadPurchased: obj.productId = ${obj?.productId}")
 }
 ```
@@ -240,7 +173,6 @@ Cách lấy histories purchase (fun suspend):
 ## Chú ý : 
 - Mới chỉ test trên Nokia (android 11) 
 - Nếu có bug gì vui lòng thông báo cho author 
-- Library chưa hỗ trợ iap consumable 
 
 ---
 ## Author 

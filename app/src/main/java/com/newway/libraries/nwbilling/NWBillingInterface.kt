@@ -16,7 +16,7 @@ interface NWBillingInterface {
     fun onServiceDisconnected(){}
 
     // return all product detail
-    fun onLoadedInfo(allDetails:List<NWProductDetails>)
+    fun onLoadedInfo(allDetails:List<NWProductDetails>){}
 
     //Get all purchases available (type : SUB or INAPP)
     fun onLoadPurchased(purchases: List<NWPurchase>){}
