@@ -412,4 +412,48 @@ object NWBilling {
             logDebug("productDetails.size == 0")
         }
     }
+
+    //history
+    suspend fun fetchHistory(): List<PurchaseHistoryRecord> {
+        return coroutineScope {
+            val subs = async { getSubscriptionHistory() }
+            val inapp = async { getInAppHistory() }
+
+            // Wait for both deferred results to complete
+            val rsSubs = subs.await()
+            val rsInapp = inapp.await()
+
+            // Merge or process the results as needed
+            val mergedResult = mergeHistoryResults(rsSubs, rsInapp)
+
+            mergedResult
+        }
+    }
+    private fun mergeHistoryResults(result1: List<PurchaseHistoryRecord>, result2: List<PurchaseHistoryRecord>): List<PurchaseHistoryRecord> {
+        // Merge or process the results as needed
+        return result1 + result2
+    }
+    suspend fun getSubscriptionHistory():List<PurchaseHistoryRecord> {
+        return if (billingClient?.isReady == true) {
+            val params = QueryPurchaseHistoryParams.newBuilder()
+                .setProductType(ProductType.SUBS)
+            val result = billingClient?.queryPurchaseHistory(params.build())
+
+            result?.purchaseHistoryRecordList ?: listOf()
+        } else {
+            listOf()
+        }
+    }
+    suspend fun getInAppHistory():List<PurchaseHistoryRecord>{
+        return if (billingClient?.isReady == true) {
+            val params = QueryPurchaseHistoryParams.newBuilder()
+                .setProductType(ProductType.INAPP)
+            val result = billingClient?.queryPurchaseHistory(params.build())
+
+            result?.purchaseHistoryRecordList ?: listOf()
+        }else{
+            listOf()
+        }
+    }
+
 }
