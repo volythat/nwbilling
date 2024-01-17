@@ -16,9 +16,12 @@ class NWBillingHandler {
     fun addPurchases(list: List<Purchase>,isSub:Boolean){
         list.forEach { purchase ->
             handlePurchase(purchase)
-            convertPurchaseJsonToObject(purchase = purchase)?.let { convert ->
-                convert.purchase = purchase
-                addBillingPurchase(purchase = convert)
+            val obj = convertPurchaseJsonToObject(purchase = purchase)
+            if (obj == null){
+                addBillingPurchase(purchase = NWPurchase.from(productId = "",purchase = purchase))
+            }else{
+                obj.purchase = purchase
+                addBillingPurchase(purchase = obj)
             }
         }
         if (isSub){
@@ -26,6 +29,20 @@ class NWBillingHandler {
         }else{
             isLoadedInApp = true
         }
+    }
+    fun addAllPurchased(list:List<Purchase>){
+        list.forEach { purchase ->
+            handlePurchase(purchase)
+            val obj = convertPurchaseJsonToObject(purchase = purchase)
+            if (obj == null){
+                addBillingPurchase(purchase = NWPurchase.from(productId = "",purchase = purchase))
+            }else{
+                obj.purchase = purchase
+                addBillingPurchase(purchase = obj)
+            }
+        }
+        isLoadedSubs = true
+        isLoadedInApp = true
     }
 
     private fun addBillingPurchase(purchase:NWPurchase){
@@ -78,7 +95,6 @@ class NWBillingHandler {
     // chỉ dành cho iap consumable
 
     fun handlePurchaseForConsumable(purchase: Purchase) {
-        NWBilling.logDebug("purchase consumable = ${purchase.originalJson}")
         convertPurchaseJsonToObject(purchase)?.let { pur ->
             NWBilling.allProducts.firstOrNull { it.id == pur.productId }?.let { prod ->
                 if (prod.isConsumable){
@@ -88,6 +104,7 @@ class NWBillingHandler {
         }
     }
     fun handlePurchaseConsumable(purchase: Purchase) {
+        NWBilling.logDebug("handlePurchaseConsumable = ${purchase.originalJson}")
 
         // Verify the purchase.
         // Ensure entitlement was not already granted for this purchaseToken.

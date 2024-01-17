@@ -16,10 +16,13 @@ import com.android.billingclient.api.ConsumeParams
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
 import com.android.billingclient.api.PurchaseHistoryRecord
+import com.android.billingclient.api.PurchasesResult
 import com.android.billingclient.api.QueryProductDetailsParams
 import com.android.billingclient.api.QueryPurchaseHistoryParams
 import com.android.billingclient.api.QueryPurchasesParams
+import com.android.billingclient.api.queryProductDetails
 import com.android.billingclient.api.queryPurchaseHistory
+import com.android.billingclient.api.queryPurchasesAsync
 import com.google.gson.Gson
 import com.newway.libraries.nwbilling.model.NWProduct
 import com.newway.libraries.nwbilling.model.NWProductDetails
@@ -141,10 +144,10 @@ object NWBilling {
         billingClient?.queryPurchasesAsync(params.build()
         ) { result, purchases ->
             buyingProduct = null
-            if (result.responseCode == BillingResponseCode.OK) {
-                logDebug("asyncSubscription : OK - purchases.size = ${purchases.size}")
-                purchased.addPurchases(purchases,true)
-            }
+//            if (result.responseCode == BillingResponseCode.OK) {
+            logDebug("asyncSubscription : OK - purchases.size = ${purchases.size}")
+            purchased.addPurchases(purchases,true)
+//            }
             handleListPurchased()
         }
     }
@@ -156,14 +159,33 @@ object NWBilling {
         billingClient?.queryPurchasesAsync(params.build()
         ) { result, purchases ->
             buyingProduct = null
-            if (result.responseCode == BillingResponseCode.OK) {
-                logDebug("asyncInApp : OK - purchases.size = ${purchases.size}")
-                purchased.addPurchases(purchases,false)
-            }
+//            if (result.responseCode == BillingResponseCode.OK) {
+            logDebug("asyncInApp : OK - purchases.size = ${purchases.size}")
+            purchased.addPurchases(purchases,false)
+//            }
 
             handleListPurchased()
         }
     }
+    suspend fun fetchAllPurchased(): List<Purchase> {
+        return coroutineScope {
+            val subs = async { billingClient?.queryPurchasesAsync(params = QueryPurchasesParams.newBuilder().setProductType(ProductType.SUBS).build()) }
+            val inapp = async {
+                billingClient?.queryPurchasesAsync(params = QueryPurchasesParams.newBuilder().setProductType(ProductType.INAPP).build())
+            }
+
+            // Wait for both deferred results to complete
+            val rsSubs = subs.await()
+            val rsInapp = inapp.await()
+
+            // Merge or process the results as needed
+            val mergedResult = (rsSubs?.purchasesList ?: listOf()) + (rsInapp?.purchasesList ?: listOf())
+            purchased.addAllPurchased(mergedResult)
+
+            mergedResult
+        }
+    }
+
 
     private fun handleListPurchased(){
         if (purchased.isLoadedSubs && purchased.isLoadedInApp){
@@ -188,6 +210,73 @@ object NWBilling {
             } else {
                 details.isLoadedInApp = true
             }
+        }
+    }
+    suspend fun fetchAllInfo(ids:List<NWProduct>): List<NWProductDetails> {
+        return coroutineScope {
+            val idSubs = ids.filter {it.type == ProductType.SUBS}
+            val idInApps = ids.filter {it.type == ProductType.INAPP}
+            val subs = async {
+                val items = idSubs.map { it.toQueryProduct() }
+                val params = QueryProductDetailsParams.newBuilder()
+                        .setProductList(items)
+                        .build()
+                billingClient?.queryProductDetails(params)
+            }
+            val inapp = async {
+                val items = idInApps.map { it.toQueryProduct() }
+                val params = QueryProductDetailsParams.newBuilder()
+                    .setProductList(items)
+                    .build()
+                billingClient?.queryProductDetails(params)
+            }
+
+            // Wait for both deferred results to complete
+            val rsSubs = subs.await()
+            val rsInapp = inapp.await()
+
+            // Merge or process the results as needed
+            val mergedResult = (rsSubs?.productDetailsList ?: listOf()) + (rsInapp?.productDetailsList ?: listOf())
+            val arTemp = ArrayList<NWProductDetails>()
+            mergedResult.forEach { detail ->
+                val item = NWProductDetails(
+                    id = detail.productId,
+                    productDetails = detail
+                )
+                if (detail.subscriptionOfferDetails != null){
+                    item.type = ProductType.SUBS
+                    detail.subscriptionOfferDetails?.forEach { offer ->
+                        item.priceToken = offer.offerToken
+                        if (offer.pricingPhases.pricingPhaseList.size == 1) {
+                            offer.pricingPhases.pricingPhaseList.first()?.let { first ->
+                                item.currencyCode = first.priceCurrencyCode
+                                item.formatPrice = first.formattedPrice
+                                item.priceMicros = first.priceAmountMicros
+                            }
+                        } else if (offer.pricingPhases.pricingPhaseList.size > 1) {
+                            val first = offer.pricingPhases.pricingPhaseList[0]
+                            val two = offer.pricingPhases.pricingPhaseList[1]
+                            item.currencyCode = two.priceCurrencyCode
+                            item.formatPrice = two.formattedPrice
+                            item.priceMicros = two.priceAmountMicros
+                            item.isTrial = first.priceAmountMicros == 0L
+                        } else {
+                            // nothing
+                        }
+                    }
+                }
+
+                if (detail.oneTimePurchaseOfferDetails != null){
+                    item.type = ProductType.INAPP
+                    detail.oneTimePurchaseOfferDetails?.let { offer ->
+                        item.currencyCode = offer.priceCurrencyCode
+                        item.formatPrice = offer.formattedPrice
+                        item.priceMicros = offer.priceAmountMicros
+                    }
+                }
+                arTemp.add(item)
+            }
+            arTemp
         }
     }
 
@@ -298,18 +387,13 @@ object NWBilling {
             if (detail != null && billingClient?.isReady == true ) {
                 buyingProduct = product
                 logDebug("buy: id = ${product.id}")
-                val productDetailsParamsList = listOf(
-                    BillingFlowParams.ProductDetailsParams.newBuilder()
-                        // retrieve a value for "productDetails" by calling queryProductDetailsAsync()
-                        .setProductDetails(detail.productDetails)
-                        // to get an offer token, call ProductDetails.subscriptionOfferDetails()
-                        // for a list of offers that are available to the user
-                        .setOfferToken(detail.priceToken)
-                        .build()
-                )
+                val builder = BillingFlowParams.ProductDetailsParams.newBuilder().setProductDetails(detail.productDetails)
+                if (product.type == ProductType.SUBS){
+                    builder.setOfferToken(detail.priceToken)
+                }
 
                 val billingFlowParams = BillingFlowParams.newBuilder()
-                    .setProductDetailsParamsList(productDetailsParamsList)
+                    .setProductDetailsParamsList(listOf(builder.build()))
                     .build()
 
                 // Launch the billing flow

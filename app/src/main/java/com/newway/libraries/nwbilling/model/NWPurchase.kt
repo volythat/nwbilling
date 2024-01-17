@@ -14,6 +14,24 @@ class NWPurchase(
     val acknowledged : Boolean,
     var purchase: Purchase? = null
 ) {
+    companion object {
+        fun from(productId: String,purchase: Purchase): NWPurchase {
+            return NWPurchase(
+                orderId = purchase.orderId,
+                productId = productId,
+                packageName = purchase.packageName,
+                purchaseTime = purchase.purchaseTime,
+                purchaseState = purchase.purchaseState,
+                purchaseToken = purchase.purchaseToken,
+                quantity = purchase.quantity,
+                autoRenewing = purchase.isAutoRenewing,
+                acknowledged = purchase.isAcknowledged,
+                purchase = purchase
+            )
+        }
+    }
+
+
 }
 
 //{"orderId":"GPA.3321-7442-1576-36737",
