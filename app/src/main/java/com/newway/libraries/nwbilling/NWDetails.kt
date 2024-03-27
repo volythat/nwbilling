@@ -10,6 +10,10 @@ class NWDetails {
     var isLoadedInApp : Boolean = false
     var isLoadedSubs : Boolean = false
 
+    fun reset(){
+        isLoadedSubs = false
+        isLoadedInApp = false
+    }
     fun getProducts():List<NWProductDetails> {
         return productDetails.filter {it.type == ProductType.INAPP}
     }

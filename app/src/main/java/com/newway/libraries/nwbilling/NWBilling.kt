@@ -44,7 +44,6 @@ open class NWBilling(val context: Context) {
         logDebug("NWBilling destroy")
         billingClient?.endConnection()
         resetData()
-        purchased = null
         listener = null
         billingClient = null
     }
@@ -54,26 +53,22 @@ open class NWBilling(val context: Context) {
         }
     }
     private fun resetData(){
+        purchased = null
         buyingProduct = null
         allProducts = listOf()
         details = NWDetails()
+        details.reset()
     }
     //setup
 
-    fun verify(){
-        if (billingClient == null){
-            billingClient  = BillingClient.newBuilder(context).enablePendingPurchases().build()
-        }
-        startConnect(withIds = listOf())
-    }
     //
-    fun setUp(ids:List<NWProduct>,isDebug:Boolean = false){
+    fun setUp(ids:List<NWProduct> = listOf(), isDebug:Boolean = false){
+        resetData()
         this.isDebug = isDebug
         allProducts = ids
-        resetData()
         if (billingClient == null || billingClient?.isReady == false) {
             logDebug("init billing")
-            purchased = NWBillingHandler(this)
+
             billingClient = BillingClient.newBuilder(context).enablePendingPurchases()
                 .setListener { result, listPurchases ->
                     logDebug("buy done: responseCode = ${result.responseCode} -- buying id = ${buyingProduct?.id}")
@@ -147,6 +142,7 @@ open class NWBilling(val context: Context) {
 
     // async : lấy các purchase đã mua
     fun asyncPurchased(){
+        purchased = NWBillingHandler(this)
         asyncSubscription()
         asyncInApp()
     }
@@ -210,9 +206,7 @@ open class NWBilling(val context: Context) {
 
     // Info : lấy thông tin product
     fun getInfo(){
-        if (allProducts.size == details.productDetails.size){
-            listener?.onLoadedInfo(details.productDetails)
-        }else {
+        if (allProducts.isNotEmpty()){
             val subs = allProducts.filter { it.type == ProductType.SUBS }
             if (subs.isNotEmpty()) {
                 getSubscriptionInfo(subs)
