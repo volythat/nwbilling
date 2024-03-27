@@ -63,8 +63,8 @@ open class NWBilling(val context: Context) {
     fun verify(){
         if (billingClient == null){
             billingClient  = BillingClient.newBuilder(context).enablePendingPurchases().build()
-            startConnect()
         }
+        startConnect(withIds = listOf())
     }
     //
     fun setUp(ids:List<NWProduct>,isDebug:Boolean = false){
@@ -103,15 +103,16 @@ open class NWBilling(val context: Context) {
                     }
                 }.build()
 
-            startConnect()
+            startConnect(withIds = ids)
         }else{
             logDebug("inited billing")
-            startConnect()
+            startConnect(withIds = ids)
         }
     }
     //connect
 
-    private fun startConnect(){
+    private fun startConnect(withIds:List<NWProduct>){
+        allProducts = withIds
         logDebug("startConnect")
         billingClient?.startConnection(object : BillingClientStateListener {
             override fun onBillingSetupFinished(billingResult: BillingResult) {
@@ -120,7 +121,9 @@ open class NWBilling(val context: Context) {
                     buyingProduct = null
                     logDebug("startServiceConnection: true")
                     listener?.onConnected()
-                    getInfo()
+                    if (allProducts.isNotEmpty()) {
+                        getInfo()
+                    }
                     asyncPurchased()
                 } else {
                     buyingProduct = null
@@ -139,7 +142,7 @@ open class NWBilling(val context: Context) {
         })
     }
     fun reConnect(){
-        startConnect()
+        startConnect(withIds = allProducts)
     }
 
     // async : lấy các purchase đã mua
