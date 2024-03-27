@@ -6,9 +6,10 @@ import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.ConsumeParams
 import com.android.billingclient.api.Purchase
 import com.google.gson.Gson
+import com.newway.libraries.nwbilling.model.NWProduct
 import com.newway.libraries.nwbilling.model.NWPurchase
 
-class NWBillingHandler {
+class NWBillingHandler(val billing:NWBilling) {
     var purchases : ArrayList<NWPurchase> = arrayListOf()
     var isLoadedInApp : Boolean = false
     var isLoadedSubs : Boolean = false
@@ -63,32 +64,32 @@ class NWBillingHandler {
         return try {
             gson.fromJson(purchase.originalJson, NWPurchase::class.java)
         }catch (e:Exception){
-            NWBilling.logDebug("convertPurchaseJsonToObject: error = ${e.localizedMessage}")
+            billing.logDebug("convertPurchaseJsonToObject: error = ${e.localizedMessage}")
             null
         }
     }
     //handle purchase : dành cho iap non-consumable và subscriptions
     fun handlePurchase(purchase: Purchase){
         if (purchase.purchaseState == Purchase.PurchaseState.PURCHASED){
-            NWBilling.logDebug("handlePurchase = ${purchase.originalJson}")
+            billing.logDebug("handlePurchase = ${purchase.originalJson}")
             if (!purchase.isAcknowledged) {
                 val acknowledgePurchaseParams = AcknowledgePurchaseParams.newBuilder().setPurchaseToken(purchase.purchaseToken)
-                NWBilling.billingClient?.acknowledgePurchase(acknowledgePurchaseParams.build()
+                billing.billingClient?.acknowledgePurchase(acknowledgePurchaseParams.build()
                 ) { result ->
                     if (result.responseCode == BillingClient.BillingResponseCode.OK) {
-                        NWBilling.logDebug("onAcknowledgePurchaseResponse: OK")
+                        billing.logDebug("onAcknowledgePurchaseResponse: OK")
                         // If purchase was a consumable product (a product you want the user to be able to buy again)
                         handlePurchaseForConsumable(purchase)
                     } else {
-                        NWBilling.logDebug("onAcknowledgePurchaseResponse: Failed")
+                        billing.logDebug("onAcknowledgePurchaseResponse: Failed")
                     }
                 }
             }else{
-                NWBilling.logDebug("onAcknowledgePurchaseResponse: purchase already isAcknowledged")
+                billing.logDebug("onAcknowledgePurchaseResponse: purchase already isAcknowledged")
                 handlePurchaseForConsumable(purchase)
             }
         }else{
-            NWBilling.logDebug("handlePurchase: purchase.purchaseState = ${purchase.purchaseState}")
+            billing.logDebug("handlePurchase: purchase.purchaseState = ${purchase.purchaseState}")
         }
     }
 
@@ -96,7 +97,7 @@ class NWBillingHandler {
 
     fun handlePurchaseForConsumable(purchase: Purchase) {
         convertPurchaseJsonToObject(purchase)?.let { pur ->
-            NWBilling.allProducts.firstOrNull { it.id == pur.productId }?.let { prod ->
+            billing.allProducts.firstOrNull { it.id == pur.productId }?.let { prod ->
                 if (prod.isConsumable){
                     handlePurchaseConsumable(purchase)
                 }
@@ -104,7 +105,7 @@ class NWBillingHandler {
         }
     }
     fun handlePurchaseConsumable(purchase: Purchase) {
-        NWBilling.logDebug("handlePurchaseConsumable = ${purchase.originalJson}")
+        billing.logDebug("handlePurchaseConsumable = ${purchase.originalJson}")
 
         // Verify the purchase.
         // Ensure entitlement was not already granted for this purchaseToken.
@@ -113,11 +114,11 @@ class NWBillingHandler {
             ConsumeParams.newBuilder()
                 .setPurchaseToken(purchase.purchaseToken)
                 .build()
-        NWBilling.billingClient?.consumeAsync(consumeParams){ result, token ->
+        billing.billingClient?.consumeAsync(consumeParams){ result, token ->
             if (result.responseCode == BillingClient.BillingResponseCode.OK){
-                NWBilling.logDebug("handlePurchaseConsumable: OK")
+                billing.logDebug("handlePurchaseConsumable: OK")
             }else{
-                NWBilling.logDebug("handlePurchaseConsumable: not ok (code = ${result.responseCode})")
+                billing.logDebug("handlePurchaseConsumable: not ok (code = ${result.responseCode})")
             }
         }
     }

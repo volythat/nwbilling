@@ -30,7 +30,7 @@ import com.newway.libraries.nwbilling.model.NWPurchase
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 
-object NWBilling {
+open class NWBilling(val context: Context) {
     var billingClient: BillingClient? = null
     private var isDebug : Boolean = false
     var listener: NWBillingInterface? = null
@@ -38,15 +38,16 @@ object NWBilling {
     var allProducts: List<NWProduct> = listOf()
     var buyingProduct : NWProduct? = null
     var details = NWDetails()
-    var purchased = NWBillingHandler()
+    var purchased : NWBillingHandler? = null
 
-//    fun destroy(){
-//        logDebug("NWBilling destroy")
-//        billingClient?.endConnection()
-//        listener = null
-//        billingClient = null
-//        resetData()
-//    }
+    fun destroy(){
+        logDebug("NWBilling destroy")
+        billingClient?.endConnection()
+        resetData()
+        purchased = null
+        listener = null
+        billingClient = null
+    }
     fun logDebug(value:String){
         if (isDebug) {
             Log.e("NWBilling", value)
@@ -54,16 +55,25 @@ object NWBilling {
     }
     private fun resetData(){
         buyingProduct = null
+        allProducts = listOf()
         details = NWDetails()
     }
+    //setup
 
+    fun verify(){
+        if (billingClient == null){
+            billingClient  = BillingClient.newBuilder(context).enablePendingPurchases().build()
+            startConnect()
+        }
+    }
     //
-    fun setUp(context: Context,ids:List<NWProduct>,isDebug:Boolean = false){
+    fun setUp(ids:List<NWProduct>,isDebug:Boolean = false){
         this.isDebug = isDebug
         allProducts = ids
         resetData()
         if (billingClient == null || billingClient?.isReady == false) {
             logDebug("init billing")
+            purchased = NWBillingHandler(this)
             billingClient = BillingClient.newBuilder(context).enablePendingPurchases()
                 .setListener { result, listPurchases ->
                     logDebug("buy done: responseCode = ${result.responseCode} -- buying id = ${buyingProduct?.id}")
@@ -72,11 +82,11 @@ object NWBilling {
                         val detail = details.getProductDetail(buyingProduct!!)
                         listPurchases?.forEach { purchase ->
                             logDebug("startServiceConnection: purchase = ${purchase.originalJson}")
-                            val convert = purchased.convertPurchaseJsonToObject(purchase)
+                            val convert = purchased?.convertPurchaseJsonToObject(purchase)
                             if (convert?.productId.equals(buyingProduct?.id)){
                                 pc = purchase
                             }
-                            purchased.handlePurchase(purchase)
+                            purchased?.handlePurchase(purchase)
                         }
                         Handler(Looper.getMainLooper()).postDelayed({
                             listener?.onPurchasedSuccess(result, pc, buyingProduct!!,detail)
@@ -85,7 +95,7 @@ object NWBilling {
                         logDebug("startServiceConnection failed: ${result.responseCode} -- mes = ${result.debugMessage}")
                         listPurchases?.forEach { purchase ->
                             logDebug("startServiceConnection failed: purchase = ${purchase.originalJson}")
-                            purchased.handlePurchase(purchase)
+                            purchased?.handlePurchase(purchase)
                         }
                         Handler(Looper.getMainLooper()).postDelayed({
                             listener?.onPurchasedFailed(result, buyingProduct)
@@ -146,7 +156,7 @@ object NWBilling {
             buyingProduct = null
 //            if (result.responseCode == BillingResponseCode.OK) {
             logDebug("asyncSubscription : OK - purchases.size = ${purchases.size}")
-            purchased.addPurchases(purchases,true)
+            purchased?.addPurchases(purchases,true)
 //            }
             handleListPurchased()
         }
@@ -161,7 +171,7 @@ object NWBilling {
             buyingProduct = null
 //            if (result.responseCode == BillingResponseCode.OK) {
             logDebug("asyncInApp : OK - purchases.size = ${purchases.size}")
-            purchased.addPurchases(purchases,false)
+            purchased?.addPurchases(purchases,false)
 //            }
 
             handleListPurchased()
@@ -180,7 +190,7 @@ object NWBilling {
 
             // Merge or process the results as needed
             val mergedResult = (rsSubs?.purchasesList ?: listOf()) + (rsInapp?.purchasesList ?: listOf())
-            purchased.addAllPurchased(mergedResult)
+            purchased?.addAllPurchased(mergedResult)
 
             mergedResult
         }
@@ -188,8 +198,10 @@ object NWBilling {
 
 
     private fun handleListPurchased(){
-        if (purchased.isLoadedSubs && purchased.isLoadedInApp){
-            listener?.onLoadPurchased(purchases = purchased.purchases)
+        purchased?.let {
+            if (it.isLoadedSubs  && it.isLoadedInApp){
+                listener?.onLoadPurchased(purchases = it.purchases)
+            }
         }
     }
 
