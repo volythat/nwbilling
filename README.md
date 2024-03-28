@@ -38,13 +38,14 @@ dependencies {
 ## Khởi tạo và kết nối : 
 Ở màn Splash  :
 
-//khởi tạo :
+- khởi tạo :
 
 ```kotlin
     private var billing : NWBilling? = null 
 ```
 
-// setup 
+- Setup
+
 ```kotlin
 private fun setUpBilling(){
     billing = NWBilling(this)
@@ -88,7 +89,7 @@ override fun onDestroy() {
 ```
 
 - Biến isDebug : để show log purchase , khi release nên để về false 
-- Tất cả interface đều optional, ở màn Splash thì chỉ cần 3 interface trên 
+- Tất cả interface đều optional, ở màn Splash thì chỉ cần 4 interface trên 
 - Ở splash không cần truyền mảng ids 
 
 --- 
