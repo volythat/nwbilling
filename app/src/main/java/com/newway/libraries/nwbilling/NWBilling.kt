@@ -27,8 +27,12 @@ import com.google.gson.Gson
 import com.newway.libraries.nwbilling.model.NWProduct
 import com.newway.libraries.nwbilling.model.NWProductDetails
 import com.newway.libraries.nwbilling.model.NWPurchase
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 open class NWBilling(val context: Context) {
     var billingClient: BillingClient? = null
@@ -141,41 +145,18 @@ open class NWBilling(val context: Context) {
     }
 
     // async : lấy các purchase đã mua
+
     fun asyncPurchased(){
         purchased = NWBillingHandler(this)
-        asyncSubscription()
-        asyncInApp()
-    }
-    private fun asyncSubscription(){
-        logDebug("asyncSubscription")
-        val params = QueryPurchasesParams.newBuilder()
-            .setProductType(ProductType.SUBS)
-        billingClient?.queryPurchasesAsync(params.build()
-        ) { result, purchases ->
-            buyingProduct = null
-//            if (result.responseCode == BillingResponseCode.OK) {
-            logDebug("asyncSubscription : OK - purchases.size = ${purchases.size}")
-            purchased?.addPurchases(purchases,true)
-//            }
-            handleListPurchased()
+        CoroutineScope(Dispatchers.Default).launch {
+            val all = fetchAllPurchased()
+            purchased?.addAllPurchased(all)
+            withContext(Dispatchers.Main){
+                handleListPurchased()
+            }
         }
     }
-    private fun asyncInApp(){
-        logDebug("asyncInApp")
-        val params = QueryPurchasesParams.newBuilder()
-            .setProductType(ProductType.INAPP)
 
-        billingClient?.queryPurchasesAsync(params.build()
-        ) { result, purchases ->
-            buyingProduct = null
-//            if (result.responseCode == BillingResponseCode.OK) {
-            logDebug("asyncInApp : OK - purchases.size = ${purchases.size}")
-            purchased?.addPurchases(purchases,false)
-//            }
-
-            handleListPurchased()
-        }
-    }
     suspend fun fetchAllPurchased(): List<Purchase> {
         return coroutineScope {
             val subs = async { billingClient?.queryPurchasesAsync(params = QueryPurchasesParams.newBuilder().setProductType(ProductType.SUBS).build()) }
@@ -189,12 +170,10 @@ open class NWBilling(val context: Context) {
 
             // Merge or process the results as needed
             val mergedResult = (rsSubs?.purchasesList ?: listOf()) + (rsInapp?.purchasesList ?: listOf())
-            purchased?.addAllPurchased(mergedResult)
 
             mergedResult
         }
     }
-
 
     private fun handleListPurchased(){
         purchased?.let {
@@ -207,17 +186,12 @@ open class NWBilling(val context: Context) {
     // Info : lấy thông tin product
     fun getInfo(){
         if (allProducts.isNotEmpty()){
-            val subs = allProducts.filter { it.type == ProductType.SUBS }
-            if (subs.isNotEmpty()) {
-                getSubscriptionInfo(subs)
-            } else {
-                details.isLoadedSubs = true
-            }
-            val inApp = allProducts.filter { it.type == ProductType.INAPP }
-            if (inApp.isNotEmpty()) {
-                getProductInfo(inApp)
-            } else {
-                details.isLoadedInApp = true
+            CoroutineScope(Dispatchers.Default).launch {
+                val all = fetchAllInfo(allProducts)
+                details.addAll(all)
+                withContext(Dispatchers.Main){
+                    handleListProductDetails()
+                }
             }
         }
     }
@@ -228,8 +202,8 @@ open class NWBilling(val context: Context) {
             val subs = async {
                 val items = idSubs.map { it.toQueryProduct() }
                 val params = QueryProductDetailsParams.newBuilder()
-                        .setProductList(items)
-                        .build()
+                    .setProductList(items)
+                    .build()
                 billingClient?.queryProductDetails(params)
             }
             val inapp = async {
@@ -286,98 +260,6 @@ open class NWBilling(val context: Context) {
                 arTemp.add(item)
             }
             arTemp
-        }
-    }
-
-    private fun getSubscriptionInfo(ids:List<NWProduct>){
-        if (billingClient?.isReady == true) {
-            logDebug( "getSubscriptionInfo: ")
-            val items = ids.map { it.toQueryProduct() }
-            val queryProductDetailsParams =
-                QueryProductDetailsParams.newBuilder()
-                    .setProductList(items)
-                    .build()
-
-            billingClient?.queryProductDetailsAsync(queryProductDetailsParams) { billingResult,
-                                                                                 productDetailsList ->
-                // check billingResult
-                logDebug("getSubscriptionInfo billingResult : code = ${billingResult.responseCode}")
-                // process returned productDetailsList
-                val arTemp = ArrayList<NWProductDetails>()
-                productDetailsList.forEach {productDetails ->
-                    if (productDetails.productId != null) {
-                        val item = NWProductDetails(
-                            id = productDetails.productId,
-                            type = ProductType.SUBS,
-                            productDetails = productDetails
-                        )
-                        productDetails.subscriptionOfferDetails?.forEach { offer ->
-                            item.priceToken = offer.offerToken
-                            if (offer.pricingPhases.pricingPhaseList.size == 1) {
-                                offer.pricingPhases.pricingPhaseList.first()?.let { first ->
-                                    item.currencyCode = first.priceCurrencyCode
-                                    item.formatPrice = first.formattedPrice
-                                    item.priceMicros = first.priceAmountMicros
-                                }
-                            } else if (offer.pricingPhases.pricingPhaseList.size > 1) {
-                                val first = offer.pricingPhases.pricingPhaseList[0]
-                                val two = offer.pricingPhases.pricingPhaseList[1]
-                                item.currencyCode = two.priceCurrencyCode
-                                item.formatPrice = two.formattedPrice
-                                item.priceMicros = two.priceAmountMicros
-                                item.isTrial = first.priceAmountMicros == 0L
-                            } else {
-                                // nothing
-                            }
-                        }
-                        arTemp.add(item)
-                    }
-                }
-                details.addDetails(arTemp, isSubs = true)
-
-                Handler(Looper.getMainLooper()).postDelayed({
-                    handleListProductDetails()
-                },200)
-            }
-        }
-    }
-
-    private fun getProductInfo(ids:List<NWProduct>){
-        if (billingClient?.isReady == true) {
-            logDebug("getProductInfo: ")
-            val items = ids.map { it.toQueryProduct() }
-            val queryProductDetailsParams =
-                QueryProductDetailsParams.newBuilder()
-                    .setProductList(items)
-                    .build()
-
-            billingClient?.queryProductDetailsAsync(queryProductDetailsParams) { billingResult,
-                                                                                 productDetailsList ->
-                // check billingResult
-                logDebug("getProductInfo billingResult : code = ${billingResult.responseCode}")
-                // process returned productDetailsList
-                val arTemp = ArrayList<NWProductDetails>()
-                productDetailsList.forEach { productDetails ->
-                    if (productDetails.productId != null) {
-                        val item = NWProductDetails(
-                            id = productDetails.productId,
-                            type = ProductType.INAPP,
-                            productDetails = productDetails
-                        )
-                        productDetails.oneTimePurchaseOfferDetails?.let { offer ->
-                            item.currencyCode = offer.priceCurrencyCode
-                            item.formatPrice = offer.formattedPrice
-                            item.priceMicros = offer.priceAmountMicros
-                        }
-                        arTemp.add(item)
-                    }
-                }
-                details.addDetails(arTemp, isSubs = false)
-
-                Handler(Looper.getMainLooper()).postDelayed({
-                    handleListProductDetails()
-                },200)
-            }
         }
     }
 

@@ -11,8 +11,8 @@ android {
     defaultConfig {
         minSdk 23
         targetSdk 34
-        versionCode 212
-        versionName "2.1.2"
+        versionCode 220
+        versionName "2.2.0"
 
 //        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -40,14 +40,14 @@ afterEvaluate {
                 from components.release
                 groupId = 'com.github.volythat'
                 artifactId = 'nwbilling'
-                version = '2.1.2'
+                version = '2.2.0'
             }
         }
     }
 }
 dependencies {
 
-    implementation("com.android.billingclient:billing-ktx:6.2.0")
+    implementation("com.android.billingclient:billing-ktx:7.0.0")
     implementation 'com.google.code.gson:gson:2.10.1'
 
 }

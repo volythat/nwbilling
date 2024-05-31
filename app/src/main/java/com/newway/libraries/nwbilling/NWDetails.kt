@@ -30,6 +30,13 @@ class NWDetails {
         }
     }
 
+    fun addAll(products:List<NWProductDetails>){
+        val result = productDetails.apply { addAll(products) }.distinctBy { it.id }
+        productDetails = ArrayList(result)
+        isLoadedSubs = true
+        isLoadedInApp = true
+    }
+
     fun getProductDetail(product: NWProduct) : NWProductDetails?{
         try {
             return if (productDetails.size > 0) {
