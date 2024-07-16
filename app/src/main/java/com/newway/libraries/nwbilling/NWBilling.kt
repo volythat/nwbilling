@@ -231,6 +231,7 @@ open class NWBilling(val context: Context) {
                     item.type = ProductType.SUBS
                     item.priceToken = detail.subscriptionOfferDetails?.get(0)?.offerToken ?: ""
                     detail.subscriptionOfferDetails?.forEach { offer ->
+                        logDebug("basePlanId = ${offer.basePlanId} -- offerId = ${offer.offerId} ")
                         if (item.priceToken.isEmpty()) {
                             item.priceToken = offer.offerToken
                         }
@@ -285,10 +286,11 @@ open class NWBilling(val context: Context) {
                 val builder = BillingFlowParams.ProductDetailsParams.newBuilder().setProductDetails(detail.productDetails)
                 if (product.type == ProductType.SUBS){
                     if (product.offerId.isNotEmpty()) {
-                        detail.productDetails.subscriptionOfferDetails?.forEach { offer ->
-                            if (offer.offerId == product.offerId) {
-                                builder.setOfferToken(offer.offerToken)
-                            }
+                        val filter = detail.productDetails.subscriptionOfferDetails?.filter {it.offerId == product.offerId}
+                        if (filter != null && filter.isNotEmpty()){
+                            builder.setOfferToken(filter.first().offerToken)
+                        }else{
+                            builder.setOfferToken(detail.priceToken)
                         }
                     }else{
                         builder.setOfferToken(detail.priceToken)
