@@ -22,9 +22,9 @@ maven { url 'https://jitpack.io' }
 
 ```kotlin
 dependencies {
-    implementation 'com.github.volythat:nwbilling:2.1.2'
-    implementation 'com.android.billingclient:billing-ktx:6.2.0'
-    implementation 'com.google.code.gson:gson:2.10.1'
+    implementation("com.github.volythat:nwbilling:2.2.1")
+    implementation("com.android.billingclient:billing-ktx:7.0.0")
+    implementation("com.google.code.gson:gson:2.10.1")
 }
 ```
 
@@ -167,6 +167,9 @@ private fun getInfoIAP(){
 
 ```kotlin
 fun buy(){
+    // nếu có offerId thì thêm vào  
+    val product = NWProduct("<id>",ProductType.SUBS, offerId = "freetrail")
+    // không có offer thì không truyền , library sẽ tự lấy offer đầu tiên 
     val product = NWProduct("<id>",ProductType.SUBS)
     billing?.buy(this,product)
     //=> kết quả sẽ trả về : onLoadPurchased

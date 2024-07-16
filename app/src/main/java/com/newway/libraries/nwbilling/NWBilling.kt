@@ -13,6 +13,7 @@ import com.android.billingclient.api.BillingClientStateListener
 import com.android.billingclient.api.BillingFlowParams
 import com.android.billingclient.api.BillingResult
 import com.android.billingclient.api.ConsumeParams
+import com.android.billingclient.api.PendingPurchasesParams
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
 import com.android.billingclient.api.PurchaseHistoryRecord
@@ -73,7 +74,7 @@ open class NWBilling(val context: Context) {
         if (billingClient == null || billingClient?.isReady == false) {
             logDebug("init billing")
 
-            billingClient = BillingClient.newBuilder(context).enablePendingPurchases()
+            billingClient = BillingClient.newBuilder(context).enablePendingPurchases(PendingPurchasesParams.newBuilder().enableOneTimeProducts().build())
                 .setListener { result, listPurchases ->
                     logDebug("buy done: responseCode = ${result.responseCode} -- buying id = ${buyingProduct?.id}")
                     if (result.responseCode == BillingResponseCode.OK && buyingProduct != null) {
@@ -199,14 +200,14 @@ open class NWBilling(val context: Context) {
         return coroutineScope {
             val idSubs = ids.filter {it.type == ProductType.SUBS}
             val idInApps = ids.filter {it.type == ProductType.INAPP}
-            val subs = async {
+            val subs = if (idSubs.isEmpty()) null else async {
                 val items = idSubs.map { it.toQueryProduct() }
                 val params = QueryProductDetailsParams.newBuilder()
                     .setProductList(items)
                     .build()
                 billingClient?.queryProductDetails(params)
             }
-            val inapp = async {
+            val inapp = if (idInApps.isEmpty()) null else async {
                 val items = idInApps.map { it.toQueryProduct() }
                 val params = QueryProductDetailsParams.newBuilder()
                     .setProductList(items)
@@ -215,8 +216,8 @@ open class NWBilling(val context: Context) {
             }
 
             // Wait for both deferred results to complete
-            val rsSubs = subs.await()
-            val rsInapp = inapp.await()
+            val rsSubs = subs?.await()
+            val rsInapp = inapp?.await()
 
             // Merge or process the results as needed
             val mergedResult = (rsSubs?.productDetailsList ?: listOf()) + (rsInapp?.productDetailsList ?: listOf())
@@ -228,8 +229,11 @@ open class NWBilling(val context: Context) {
                 )
                 if (detail.subscriptionOfferDetails != null){
                     item.type = ProductType.SUBS
+                    item.priceToken = detail.subscriptionOfferDetails?.get(0)?.offerToken ?: ""
                     detail.subscriptionOfferDetails?.forEach { offer ->
-                        item.priceToken = offer.offerToken
+                        if (item.priceToken.isEmpty()) {
+                            item.priceToken = offer.offerToken
+                        }
                         if (offer.pricingPhases.pricingPhaseList.size == 1) {
                             offer.pricingPhases.pricingPhaseList.first()?.let { first ->
                                 item.currencyCode = first.priceCurrencyCode
@@ -280,8 +284,17 @@ open class NWBilling(val context: Context) {
                 logDebug("buy: id = ${product.id}")
                 val builder = BillingFlowParams.ProductDetailsParams.newBuilder().setProductDetails(detail.productDetails)
                 if (product.type == ProductType.SUBS){
-                    builder.setOfferToken(detail.priceToken)
+                    if (product.offerId.isNotEmpty()) {
+                        detail.productDetails.subscriptionOfferDetails?.forEach { offer ->
+                            if (offer.offerId == product.offerId) {
+                                builder.setOfferToken(offer.offerToken)
+                            }
+                        }
+                    }else{
+                        builder.setOfferToken(detail.priceToken)
+                    }
                 }
+
 
                 val billingFlowParams = BillingFlowParams.newBuilder()
                     .setProductDetailsParamsList(listOf(builder.build()))
