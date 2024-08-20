@@ -165,17 +165,37 @@ private fun getInfoIAP(){
 
 ## Mua hàng
 
+
 ```kotlin
 fun buy(){
-    // nếu có offerId thì thêm vào  
-    val product = NWProduct("<id>",ProductType.SUBS, offerId = "freetrail")
-    // không có offer thì không truyền , library sẽ tự lấy offer đầu tiên 
-    val product = NWProduct("<id>",ProductType.SUBS)
+    // nếu không có offer hay plan gì thì như thế này là đủ : sẽ tự lấy basePlan đầu tiên
+    val product = NWProduct(id = "<id>",type = ProductType.SUBS)
     billing?.buy(this,product)
     //=> kết quả sẽ trả về : onLoadPurchased
 }
 
 ```
+
+Mua hàng cùng offer hoặc plan : nếu có offerId thì bắt buộc phải có basePlanId , nếu chỉ có basePlanId thì không cần truyền offerId 
+```kotlin
+fun buy(){
+    // nếu có offerId thì thêm vào (có offerId thì bắt buộc phải có basePlanId)
+    val product = NWProduct(id = "<id>",type = ProductType.SUBS, basePlanId = "planA", offerId = "offerA")
+    // hoăc chỉ cần basePlanId 
+    val product = NWProduct(id = "<id>",type = ProductType.SUBS, basePlanId = "planA")
+    
+    billing?.buy(this,product)
+    //=> kết quả sẽ trả về : onLoadPurchased
+}
+
+```
+
+Nếu mua *Consumable* thì thêm biến `isConsumable = true` , mặc định biến này là false 
+```kotlin 
+    val product = NWProduct(id = "<id>",type = ProductType.SUBS,isConsumable = true)
+```
+
+
 Kết quả sẽ được trả về interface : 
 
 ```kotlin

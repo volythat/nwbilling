@@ -275,6 +275,7 @@ open class NWBilling(val context: Context) {
     }
 
     //Buy : mua hàng
+
     fun buy(activity:Activity,product: NWProduct){
         if (activity.isFinishing || activity.isDestroyed) return
 
@@ -285,15 +286,51 @@ open class NWBilling(val context: Context) {
                 logDebug("buy: id = ${product.id}")
                 val builder = BillingFlowParams.ProductDetailsParams.newBuilder().setProductDetails(detail.productDetails)
                 if (product.type == ProductType.SUBS){
-                    if (product.offerId.isNotEmpty()) {
-                        val filter = detail.productDetails.subscriptionOfferDetails?.filter {it.offerId == product.offerId}
-                        if (filter != null && filter.isNotEmpty()){
-                            builder.setOfferToken(filter.first().offerToken)
+                    if (product.basePlanId.isNotEmpty()) {
+                        // lấy productDetails có basePlanId này ra
+                        val filter = detail.productDetails.subscriptionOfferDetails?.filter { it.basePlanId == product.basePlanId }
+                        if (filter == null){
+                            // không có product detail nào có base plan id này cả
+                            val first = detail.productDetails.subscriptionOfferDetails?.firstOrNull()?.offerToken ?: ""
+                            builder.setOfferToken(first)
                         }else{
-                            builder.setOfferToken(detail.priceToken)
+                            // có base plan id này => kiểm tra xem có offer không
+                            if (product.offerId.isNotEmpty()){
+                                //có dùng offer id
+                                val filterOffer = filter.firstOrNull() { it.offerId == product.offerId }
+                                if (filterOffer != null) {
+                                    logDebug("buy: offerId = ${filterOffer.offerId} - plan = ${filterOffer.basePlanId}")
+                                    builder.setOfferToken(filterOffer.offerToken)
+                                }else{
+                                    logDebug("can't find offer id => buy base plan")
+                                    val filterBase = filter.firstOrNull() { it.offerId == null }
+                                    if (filterBase != null){
+                                        logDebug("buy: base plan = ${filterBase.basePlanId} - offer = ${filterBase.offerId}")
+                                        builder.setOfferToken(filterBase.offerToken)
+                                    }else{
+                                        logDebug("buy: can't find base plan => buy normal")
+                                        val first = detail.productDetails.subscriptionOfferDetails?.firstOrNull()?.offerToken ?: ""
+                                        builder.setOfferToken(first)
+                                    }
+                                }
+                            }else{
+                                // mua bằng base plan này
+                                val filterOffer = filter.firstOrNull() { it.offerId == null }
+                                if (filterOffer != null){
+                                    logDebug("buy: base plan = ${filterOffer.basePlanId} - offer = ${filterOffer.offerId}")
+                                    builder.setOfferToken(filterOffer.offerToken)
+                                }else{
+                                    logDebug("buy: can't find offer => buy normal")
+                                    val first = detail.productDetails.subscriptionOfferDetails?.firstOrNull()?.offerToken ?: ""
+                                    builder.setOfferToken(first)
+                                }
+                            }
+
                         }
                     }else{
-                        builder.setOfferToken(detail.priceToken)
+                        val first = detail.productDetails.subscriptionOfferDetails?.firstOrNull()
+                        logDebug("buy basePlan = ${first?.basePlanId} - offer = ${first?.offerId}")
+                        builder.setOfferToken(first?.offerToken ?: "")
                     }
                 }
 
