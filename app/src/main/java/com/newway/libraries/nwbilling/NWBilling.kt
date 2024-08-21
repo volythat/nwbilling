@@ -279,10 +279,6 @@ open class NWBilling(val context: Context) {
 
     fun buy(activity:Activity,product: NWProduct){
         if (activity.isFinishing || activity.isDestroyed) return
-        if (product.basePlanId.isEmpty()){
-            Toast.makeText(activity,"Base plan is empty!", Toast.LENGTH_SHORT).show()
-            return
-        }
 
         if (details.productDetails.size > 0){
             val detail = details.getProductDetail(product)
@@ -291,6 +287,7 @@ open class NWBilling(val context: Context) {
                 logDebug("buy: id = ${product.id}")
                 val builder = BillingFlowParams.ProductDetailsParams.newBuilder().setProductDetails(detail.productDetails)
                 if (product.type == ProductType.SUBS){
+
                     if (product.basePlanId.isNotEmpty()) {
                         // lấy productDetails có basePlanId này ra
                         val filter = detail.productDetails.subscriptionOfferDetails?.filter { it.basePlanId == product.basePlanId }

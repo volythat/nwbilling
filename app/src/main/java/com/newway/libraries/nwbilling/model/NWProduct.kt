@@ -6,7 +6,7 @@ import com.android.billingclient.api.QueryProductDetailsParams.Product
 class NWProduct(
     val id : String,
     val type : String,
-    val basePlanId : String,
+    val basePlanId : String = "",
     val offerId : String = "",
     val isConsumable : Boolean = false
 ) {

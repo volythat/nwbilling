@@ -165,24 +165,27 @@ private fun getInfoIAP(){
 
 ## Mua hàng
 
-- Khởi tạo *NWProduct* gồm id , type và basePlanId là bắt buộc , còn offerId , isConsumable là optional 
+- Khởi tạo *NWProduct* gồm id , type là bắt buộc , còn basePlanId, offerId , isConsumable là optional 
+- Lưu ý : lifetime không có basePlanId , offerId nên không cần truyền vào 
+- 
 ```kotlin
 fun buy(){
-    // nếu không có offer hay plan gì thì như thế này là đủ : sẽ tự lấy basePlan đầu tiên
-    val product = NWProduct(id = "<id>",type = ProductType.SUBS,basePlanId = "planId")
+    // nếu là sub thì cần truyền thêm basePlanId 
+    val product = NWProduct(id = "<id.sub>",type = ProductType.SUBS,basePlanId = "planId")
+    // nếu là lifetime thì không cần 
+    val product = NWProduct(id = "<id.lifetime>",type = ProductType.INAPP)
+    
     billing?.buy(this,product)
     //=> kết quả sẽ trả về : onLoadPurchased
 }
 
 ```
 
-- Nếu có offerId :
+- Nếu có offerId (chỉ dành cho sub):
 ```kotlin
 fun buy(){
     // nếu có offerId thì thêm vào (có offerId thì bắt buộc phải có basePlanId)
     val product = NWProduct(id = "<id>",type = ProductType.SUBS, basePlanId = "planA", offerId = "offerA")
-    // hoăc chỉ cần basePlanId 
-    val product = NWProduct(id = "<id>",type = ProductType.SUBS, basePlanId = "planA")
     
     billing?.buy(this,product)
     //=> kết quả sẽ trả về : onLoadPurchased
@@ -192,7 +195,7 @@ fun buy(){
 
 Nếu mua *Consumable* thì thêm biến `isConsumable = true` , mặc định biến này là false 
 ```kotlin 
-    val product = NWProduct(id = "<id>",type = ProductType.SUBS,isConsumable = true)
+    val product = NWProduct(id = "<id>",type = ProductType.INAPP,isConsumable = true)
 ```
 
 
