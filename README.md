@@ -165,18 +165,18 @@ private fun getInfoIAP(){
 
 ## Mua hàng
 
-
+- Khởi tạo *NWProduct* gồm id , type và basePlanId là bắt buộc , còn offerId , isConsumable là optional 
 ```kotlin
 fun buy(){
     // nếu không có offer hay plan gì thì như thế này là đủ : sẽ tự lấy basePlan đầu tiên
-    val product = NWProduct(id = "<id>",type = ProductType.SUBS)
+    val product = NWProduct(id = "<id>",type = ProductType.SUBS,basePlanId = "planId")
     billing?.buy(this,product)
     //=> kết quả sẽ trả về : onLoadPurchased
 }
 
 ```
 
-Mua hàng cùng offer hoặc plan : nếu có offerId thì bắt buộc phải có basePlanId , nếu chỉ có basePlanId thì không cần truyền offerId 
+- Nếu có offerId :
 ```kotlin
 fun buy(){
     // nếu có offerId thì thêm vào (có offerId thì bắt buộc phải có basePlanId)

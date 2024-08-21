@@ -5,6 +5,7 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import android.widget.Toast
 import com.android.billingclient.api.AcknowledgePurchaseParams
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingClient.BillingResponseCode
@@ -278,6 +279,10 @@ open class NWBilling(val context: Context) {
 
     fun buy(activity:Activity,product: NWProduct){
         if (activity.isFinishing || activity.isDestroyed) return
+        if (product.basePlanId.isEmpty()){
+            Toast.makeText(activity,"Base plan is empty!", Toast.LENGTH_SHORT).show()
+            return
+        }
 
         if (details.productDetails.size > 0){
             val detail = details.getProductDetail(product)
@@ -291,8 +296,8 @@ open class NWBilling(val context: Context) {
                         val filter = detail.productDetails.subscriptionOfferDetails?.filter { it.basePlanId == product.basePlanId }
                         if (filter == null){
                             // không có product detail nào có base plan id này cả
-                            val first = detail.productDetails.subscriptionOfferDetails?.firstOrNull()?.offerToken ?: ""
-                            builder.setOfferToken(first)
+                            Toast.makeText(activity,"Base plan is wrong!", Toast.LENGTH_SHORT).show()
+                            return
                         }else{
                             // có base plan id này => kiểm tra xem có offer không
                             if (product.offerId.isNotEmpty()){
@@ -308,9 +313,9 @@ open class NWBilling(val context: Context) {
                                         logDebug("buy: base plan = ${filterBase.basePlanId} - offer = ${filterBase.offerId}")
                                         builder.setOfferToken(filterBase.offerToken)
                                     }else{
-                                        logDebug("buy: can't find base plan => buy normal")
-                                        val first = detail.productDetails.subscriptionOfferDetails?.firstOrNull()?.offerToken ?: ""
-                                        builder.setOfferToken(first)
+                                        logDebug("buy: can't find base plan ")
+                                        Toast.makeText(activity,"Base plan is wrong!", Toast.LENGTH_SHORT).show()
+                                        return
                                     }
                                 }
                             }else{
@@ -320,17 +325,16 @@ open class NWBilling(val context: Context) {
                                     logDebug("buy: base plan = ${filterOffer.basePlanId} - offer = ${filterOffer.offerId}")
                                     builder.setOfferToken(filterOffer.offerToken)
                                 }else{
-                                    logDebug("buy: can't find offer => buy normal")
-                                    val first = detail.productDetails.subscriptionOfferDetails?.firstOrNull()?.offerToken ?: ""
-                                    builder.setOfferToken(first)
+                                    logDebug("buy: can't find offer ")
+                                    Toast.makeText(activity,"Base plan is wrong!", Toast.LENGTH_SHORT).show()
+                                    return
                                 }
                             }
 
                         }
                     }else{
-                        val first = detail.productDetails.subscriptionOfferDetails?.firstOrNull()
-                        logDebug("buy basePlan = ${first?.basePlanId} - offer = ${first?.offerId}")
-                        builder.setOfferToken(first?.offerToken ?: "")
+                        Toast.makeText(activity,"Base plan is empty!", Toast.LENGTH_SHORT).show()
+                        return
                     }
                 }
 
