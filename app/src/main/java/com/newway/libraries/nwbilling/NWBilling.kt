@@ -28,11 +28,13 @@ import com.android.billingclient.api.queryPurchasesAsync
 import com.google.gson.Gson
 import com.newway.libraries.nwbilling.model.NWProduct
 import com.newway.libraries.nwbilling.model.NWProductDetails
+import com.newway.libraries.nwbilling.model.NWPublisher
 import com.newway.libraries.nwbilling.model.NWPurchase
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -224,46 +226,54 @@ open class NWBilling(val context: Context) {
             val mergedResult = (rsSubs?.productDetailsList ?: listOf()) + (rsInapp?.productDetailsList ?: listOf())
             val arTemp = ArrayList<NWProductDetails>()
             mergedResult.forEach { detail ->
-                val item = NWProductDetails(
-                    id = detail.productId,
-                    productDetails = detail
-                )
-                if (detail.subscriptionOfferDetails != null){
-                    item.type = ProductType.SUBS
-                    item.priceToken = detail.subscriptionOfferDetails?.get(0)?.offerToken ?: ""
-                    detail.subscriptionOfferDetails?.forEach { offer ->
-                        logDebug("basePlanId = ${offer.basePlanId} -- offerId = ${offer.offerId} ")
-                        if (item.priceToken.isEmpty()) {
-                            item.priceToken = offer.offerToken
-                        }
-                        if (offer.pricingPhases.pricingPhaseList.size == 1) {
-                            offer.pricingPhases.pricingPhaseList.first()?.let { first ->
-                                item.currencyCode = first.priceCurrencyCode
-                                item.formatPrice = first.formattedPrice
-                                item.priceMicros = first.priceAmountMicros
+                detail.subscriptionOfferDetails?.let { offerDetails ->
+                    if (offerDetails.isNotEmpty()) {
+
+                        val item = NWProductDetails(
+                            id = detail.productId,
+                            productDetails = detail
+                        )
+
+                        item.type = ProductType.SUBS
+                        item.priceToken = detail.subscriptionOfferDetails?.get(0)?.offerToken ?: ""
+                        detail.subscriptionOfferDetails?.forEach { offer ->
+                            logDebug("basePlanId = ${offer.basePlanId} -- offerId = ${offer.offerId} ")
+                            if (item.priceToken.isEmpty()) {
+                                item.priceToken = offer.offerToken
                             }
-                        } else if (offer.pricingPhases.pricingPhaseList.size > 1) {
-                            val first = offer.pricingPhases.pricingPhaseList[0]
-                            val two = offer.pricingPhases.pricingPhaseList[1]
-                            item.currencyCode = two.priceCurrencyCode
-                            item.formatPrice = two.formattedPrice
-                            item.priceMicros = two.priceAmountMicros
-                            item.isTrial = first.priceAmountMicros == 0L
-                        } else {
-                            // nothing
+                            if (offer.pricingPhases.pricingPhaseList.size == 1) {
+                                offer.pricingPhases.pricingPhaseList.first()?.let { first ->
+                                    item.currencyCode = first.priceCurrencyCode
+                                    item.formatPrice = first.formattedPrice
+                                    item.priceMicros = first.priceAmountMicros
+                                }
+                            } else if (offer.pricingPhases.pricingPhaseList.size > 1) {
+                                val first = offer.pricingPhases.pricingPhaseList[0]
+                                val two = offer.pricingPhases.pricingPhaseList[1]
+                                item.currencyCode = two.priceCurrencyCode
+                                item.formatPrice = two.formattedPrice
+                                item.priceMicros = two.priceAmountMicros
+                                item.isTrial = first.priceAmountMicros == 0L
+                            } else {
+                                // nothing
+                            }
                         }
+                        arTemp.add(item)
                     }
                 }
 
-                if (detail.oneTimePurchaseOfferDetails != null){
+                detail.oneTimePurchaseOfferDetails?.let { offer ->
+
+                    val item = NWProductDetails(
+                        id = detail.productId,
+                        productDetails = detail
+                    )
                     item.type = ProductType.INAPP
-                    detail.oneTimePurchaseOfferDetails?.let { offer ->
-                        item.currencyCode = offer.priceCurrencyCode
-                        item.formatPrice = offer.formattedPrice
-                        item.priceMicros = offer.priceAmountMicros
-                    }
+                    item.currencyCode = offer.priceCurrencyCode
+                    item.formatPrice = offer.formattedPrice
+                    item.priceMicros = offer.priceAmountMicros
+                    arTemp.add(item)
                 }
-                arTemp.add(item)
             }
             arTemp
         }
@@ -400,4 +410,9 @@ open class NWBilling(val context: Context) {
         }
     }
 
+
+    fun getSubscriptionPublisher(packageName:String,subscriptionId:String,token:String,signature:String) : Flow<NWPublisher?> {
+        val request = NWApiResponse(api = NWServiceApi())
+        return request.publisher(packageName = packageName,subscriptionId = subscriptionId,token = token,signature = signature)
+    }
 }
