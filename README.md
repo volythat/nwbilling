@@ -22,9 +22,12 @@ maven { url 'https://jitpack.io' }
 
 ```kotlin
 dependencies {
-    implementation("com.github.volythat:nwbilling:2.2.1")
-    implementation("com.android.billingclient:billing-ktx:7.0.0")
+    implementation("com.github.volythat:nwbilling:2.2.7")
+    implementation("com.android.billingclient:billing-ktx:7.1.0")
     implementation("com.google.code.gson:gson:2.10.1")
+
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
 }
 ```
 
@@ -233,6 +236,24 @@ Cách lấy histories purchase (fun suspend):
     val list = billing?.fetchHistory() //hàm gộp cả subs lẫn inapp 
     val subs = billing?.getSubscriptionHistory() // chỉ lấy history subs 
     val inapp = billing?.getInAppHistory() // chỉ lấy history in app
+```
+
+## Subscriptions publisher api 
+
+- Gọi khi mua thành công :
+```kotlin
+    private fun loadPublish(subId:String, token:String, signature:String){
+        CoroutineScope(Dispatchers.IO).launch {
+            billing?.getSubscriptionPublisher(packageName = "<package name>",
+                subscriptionId = subId,
+                token = token,
+                signature = signature)?.collect { result ->
+                withContext(Dispatchers.Main){
+                    Log.e("LoadPublish", "currency = ${result?.priceCurrencyCode} - price = ${result?.priceAmountMicros}")
+                }
+            }
+        }
+    }
 ```
 
 ---
